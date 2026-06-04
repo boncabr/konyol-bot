@@ -1,0 +1,45 @@
+modules = ["nodejs-20", "nodejs-24"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 8082
+externalPort = 3002
+
+[userenv]
+
+[userenv.shared]
+LAVALINK_HOST = "lava-v4.ajieblogs.eu.org"
+LAVALINK_PORT = "443"
+LAVALINK_SECURE = "true"
+CLIENT_ID = "1507649904456241202"
+PREFIX = "?"
+NODE_TLS_REJECT_UNAUTHORIZED = "0"
