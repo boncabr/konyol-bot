@@ -1,0 +1,21 @@
+kind = "api"
+previewPath = "/bot"
+title = "Discord Music Bot"
+version = "1.0.0"
+id = "discordBot_Mx7kPq9rN2vL3wJ"
+
+[[services]]
+localPort = 3000
+name = "Discord Music Bot"
+paths = ["/bot"]
+
+[services.development]
+run = "pnpm --filter @workspace/discord-bot run dev"
+
+[services.production]
+[services.production.run]
+args = ["node", "artifacts/discord-bot/src/index.js"]
+
+[services.production.run.env]
+PORT = "3000"
+NODE_ENV = "production"
