@@ -1,0 +1,14 @@
+# Netscape HTTP Cookie File
+# Cara mendapatkan cookies YouTube:
+# 1. Install ekstensi "Get cookies.txt LOCALLY" di Chrome/Firefox
+# 2. Buka youtube.com dan login ke akun Google kamu
+# 3. Klik ekstensi → Export cookies → simpan isi file ini
+# 4. Ganti seluruh isi file cookies.txt ini dengan hasil export tersebut
+#
+# Format (jangan hapus baris ini, hanya ganti dengan data asli):
+# .youtube.com	TRUE	/	TRUE	1999999999	VISITOR_INFO1_LIVE	xxxxx
+# .youtube.com	TRUE	/	TRUE	1999999999	YSC	xxxxx
+# .youtube.com	TRUE	/	TRUE	1999999999	SID	xxxxx
+# .youtube.com	TRUE	/	TRUE	1999999999	SSID	xxxxx
+# .youtube.com	TRUE	/	TRUE	1999999999	HSID	xxxxx
+# .youtube.com	TRUE	/	TRUE	1999999999	LOGIN_INFO	xxxxx

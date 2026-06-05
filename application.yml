@@ -16,6 +16,8 @@ plugins:
       - ANDROID
       - IOS
       - TVHTML5EMBEDDED
+    # YouTube cookies untuk bypass auth error (isi cookies.txt dengan format Netscape)
+    cookiesPath: "/app/cookies.txt"
     pot:
       token: ""
       visitorData: ""
