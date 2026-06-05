@@ -8,7 +8,7 @@ const autoplayMap = new Map();
 const musicCacheMap = new Map();
 const radioModeMap = new Map();   // guildId → true/false (radio mode active)
 
-// ─── Bass + Vocal Boost EQ (default applied on player creation) ───────────────
+
 const DEFAULT_EQ_BANDS = [
   { band: 0,  gain: 0.25 },
   { band: 1,  gain: 0.25 },
@@ -140,29 +140,6 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
     activeVoiceChannels.add(guildId);
     logger.info(`Voice slot claimed for guild ${guildId} — active: ${activeVoiceChannels.size}/${MAX_VOICE_CHANNELS}`);
 
-    // 🔊 Bass + Vocal Boost default
-    try {
-      await player.filterManager.setEQ([
-        { band: 0,  gain: 0.25 },
-        { band: 1,  gain: 0.25 },
-        { band: 2,  gain: 0.20 },
-        { band: 3,  gain: 0.10 },
-        { band: 4,  gain: 0.05 },
-        { band: 5,  gain: 0.05 },
-        { band: 6,  gain: 0.10 },
-        { band: 7,  gain: 0.15 },  // Vokal boost
-        { band: 8,  gain: 0.15 },  // Vokal boost
-        { band: 9,  gain: 0.10 },
-        { band: 10, gain: 0.05 },
-        { band: 11, gain: 0.00 },
-        { band: 12, gain: -0.05 },
-        { band: 13, gain: -0.05 },
-        { band: 14, gain: -0.05 },
-      ]);
-      logger.debug(`Bass + Vocal Boost EQ applied for guild ${guildId}`);
-    } catch (err) {
-      logger.warn(`Could not apply EQ: ${err.message}`);
-    }
   } else {
     if (voiceChannelId && player.voiceChannelId !== voiceChannelId) {
       player.voiceChannelId = voiceChannelId;

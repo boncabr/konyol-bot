@@ -76,6 +76,8 @@ lavalink:
     youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
     gc-warnings: true
+    # FFmpeg audio output options
+    options: "-vn -ar 48000 -ac 2 -c:a pcm_s16le"
 
 metrics:
   prometheus:
