@@ -32,7 +32,7 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       selfDeaf: true,
       selfMute: false,
       volume: config.music.defaultVolume,
-      instaUpdateFiltersFix: true,
+      instaUpdateFiltersFix: false,
     });
 
   } else {

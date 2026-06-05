@@ -60,27 +60,7 @@ module.exports = {
     leaveOnEmptyDelay: 30000,
     leaveOnEndDelay: 30000,
     voiceChannelBitrate: 256000, // 256 kbps (requires server boost level 2+)
-    bassBoost: {
-      enabled: true,
-      // Medium bass boost — Lavalink EQ bands (band: 0-14, gain: -0.25 to 1.0)
-      bands: [
-        { band: 0, gain: 0.20 },  // 25 Hz
-        { band: 1, gain: 0.20 },  // 40 Hz
-        { band: 2, gain: 0.15 },  // 63 Hz
-        { band: 3, gain: 0.10 },  // 100 Hz
-        { band: 4, gain: 0.05 },  // 160 Hz
-        { band: 5, gain: 0.00 },
-        { band: 6, gain: 0.00 },
-        { band: 7, gain: 0.00 },
-        { band: 8, gain: 0.00 },
-        { band: 9, gain: 0.00 },
-        { band: 10, gain: 0.00 },
-        { band: 11, gain: 0.00 },
-        { band: 12, gain: 0.00 },
-        { band: 13, gain: 0.00 },
-        { band: 14, gain: 0.00 },
-      ],
-    },
+
   },
 
   cooldowns: {

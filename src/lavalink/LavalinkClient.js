@@ -37,7 +37,7 @@ function createLavalinkManager(client) {
       applyVolumeAsFilter: false,
       clientBasedPositionUpdateInterval: 100,
       defaultSearchPlatform: config.music.searchPlatform,
-      volumeDecrementer: 0.75,
+      volumeDecrementer: 1.0,
       onDisconnect: {
         autoReconnect: true,
         destroyPlayer: false,
