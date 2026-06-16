@@ -23,8 +23,13 @@ async function handleEmoji(client, ctx, args) {
     const player = client.lavalink.getPlayer(guildId);
     if (player?.queue?.current) {
       const track = player.queue.current;
-      const status = `**${track.info.title}**𝗯𝘆**${track.info.author}**`;
-      await setVoiceStatus(client, guildId, player.voiceChannelId, status).catch(() => {});
+      const vcId = ctx.member?.voice?.channelId
+        || player.voiceChannelId
+        || player.options?.voiceChannelId;
+      if (vcId) {
+        const status = `**${track.info.title}**𝗯𝘆**${track.info.author}**`;
+        await setVoiceStatus(client, guildId, vcId, status);
+      }
     }
     const embed = createEmbed({
       color: config.colors.warning,
@@ -41,8 +46,7 @@ async function handleEmoji(client, ctx, args) {
     title: '😀 Custom Emoji Voice Status',
     description:
       'Kirim **emoji** yang ingin kamu tampilkan di depan voice channel status!\n\n' +
-      '📌 Format hasil: `[emoji] **judul**𝗯𝘆**artis**`\n' +
-      (currentEmoji ? `🎨 Emoji saat ini: ${currentEmoji}\n\n` : '\n') +
+      (currentEmoji ? `🎨 Emoji saat ini: ${currentEmoji}\n\n` : '') +
       '⏱️ Kamu punya **30 detik** untuk mengirim emoji.\n' +
       '_(ketik `cancel` untuk batal, `reset` untuk hapus emoji)_',
   });
@@ -130,9 +134,23 @@ async function handleEmoji(client, ctx, args) {
     let preview = '';
     if (player?.queue?.current) {
       const track = player.queue.current;
-      const status = `${emoji} **${track.info.title}**𝗯𝘆**${track.info.author}**`;
-      await setVoiceStatus(client, guildId, player.voiceChannelId, status).catch(() => {});
-      preview = `\n\n🎵 Voice status: \`${emoji} **${track.info.title}**𝗯𝘆**${track.info.author}**\``;
+
+      // Ambil voiceChannelId dari member's voice state (lebih reliable dari player.voiceChannelId)
+      const member = isInteraction ? ctx.member : ctx.member;
+      const vcId = member?.voice?.channelId
+        || player.voiceChannelId
+        || player.options?.voiceChannelId;
+
+      logger.debug(`emoji setVoiceStatus: vcId=${vcId} guildId=${guildId}`);
+
+      if (vcId) {
+        const status = `${emoji} **${track.info.title}**𝗯𝘆**${track.info.author}**`;
+        await setVoiceStatus(client, guildId, vcId, status);
+        preview = `\n\n🎵 Voice status: \`${emoji} **${track.info.title}**𝗯𝘆**${track.info.author}**\``;
+      } else {
+        logger.warn(`emoji: cannot find voiceChannelId in guild ${guildId}`);
+        preview = `\n\n_(Emoji akan tampil di voice status saat track berikutnya mulai)_`;
+      }
     }
 
     const successMsg = createEmbed({
