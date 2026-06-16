@@ -70,7 +70,7 @@ async function loadLavalinkEvents(client) {
 
       const voiceChannel = client.channels.cache.get(player.voiceChannelId);
       if (voiceChannel) {
-        const status = `${toBold(track.info.title)} 𝗯𝘆 ${toBold(track.info.author)}`;
+        const status = `**${track.info.title}**𝗯𝘆**${track.info.author}**`;
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, status);
       }
 
