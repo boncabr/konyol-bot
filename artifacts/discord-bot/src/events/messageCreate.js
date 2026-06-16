@@ -1,6 +1,7 @@
 const { checkCooldown } = require('../utils/cooldown');
 const { errorEmbed } = require('../utils/embeds');
 const { handleCommandError } = require('../utils/errorHandler');
+const { setAutoplay, getAutoplay } = require('../music/MusicManager');
 const config = require('../config/config');
 const logger = require('../utils/logger');
 
@@ -25,8 +26,14 @@ module.exports = {
 
     if (onCooldown) {
       return message.reply({
-        embeds: [errorEmbed(`Please wait **${remaining}s** before using this command again.`)],
+        embeds: [errorEmbed(`Tunggu **${remaining}s** lagi sebelum menggunakan perintah ini.`)],
       });
+    }
+
+    // Jika user menjalankan perintah apapun SELAIN ?autoplay, matikan autoplay
+    if (commandName !== 'autoplay' && getAutoplay(message.guild.id)) {
+      setAutoplay(message.guild.id, false);
+      logger.debug(`Autoplay dimatikan karena command "${commandName}" di guild ${message.guild.id}`);
     }
 
     try {
