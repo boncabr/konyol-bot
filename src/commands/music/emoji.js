@@ -93,7 +93,7 @@ async function handleEmoji(client, ctx, args) {
       const player = client.lavalink.getPlayer(guildId);
       if (player?.queue?.current) {
         const track = player.queue.current;
-        const status = `**${cleanTitle(track.info.title)}**`;
+        const status = `**${cleanTitle(track.info.title)} 𝒃𝒚 ${cleanTitle(track.author}**`;
         await setVoiceStatus(client, guildId, player.voiceChannelId, status).catch(() => {});
       }
       const resetEmbed = createEmbed({
