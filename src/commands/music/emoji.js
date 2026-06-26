@@ -27,7 +27,8 @@ async function handleEmoji(client, ctx, args) {
         || player.voiceChannelId
         || player.options?.voiceChannelId;
       if (vcId) {
-        const status = `**${track.info.title} 𝒃𝒚 ${track.info.author}**`;
+        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
+        const status = `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
         await setVoiceStatus(client, guildId, vcId, status);
       }
     }
@@ -93,7 +94,8 @@ async function handleEmoji(client, ctx, args) {
       const player = client.lavalink.getPlayer(guildId);
       if (player?.queue?.current) {
         const track = player.queue.current;
-        const status = `**${track.info.title} 𝒃𝒚 ${track.info.author}**`;
+        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
+        const status = `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
         await setVoiceStatus(client, guildId, player.voiceChannelId, status).catch(() => {});
       }
       const resetEmbed = createEmbed({
