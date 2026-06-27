@@ -219,16 +219,12 @@ async function loadLavalinkEvents(client) {
       const errType = classifyError(errMsg);
       const textChannel = client.channels.cache.get(player.textChannelId);
 
-      // Copyright — notify only; autoSkip advances queue automatically
       if (errType === 'copyright') {
         if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('copyright', track?.info?.title) }).catch(() => {});
+        await player.skip().catch(() => {});
         return;
       }
 
-      // Auth / generic — coba fallback diam-diam, sisipkan di posisi 0 agar
-      // autoSkip langsung memainkannya sebagai lagu berikutnya.
-      // JANGAN panggil player.skip() / player.play() manual — autoSkip sudah
-      // handle itu; pemanggilan ganda menyebabkan double-skip di playlist.
       retryingTracks.add(retryKey);
       setTimeout(() => retryingTracks.delete(retryKey), 30000);
 
@@ -240,22 +236,14 @@ async function loadLavalinkEvents(client) {
       if (fallback) {
         logger.info(`Fallback found for "${track?.info?.title}" via ${fallback.source}`);
         await player.queue.add(fallback.track, 0);
-        // Jika player benar-benar berhenti (misal track pertama playlist gagal
-        // sebelum autoSkip sempat jalan), mulai manual sekali.
-        if (!player.playing && !player.paused && player.queue.tracks.length > 0) {
-          await player.play().catch(() => {});
-        }
+        await player.skip().catch(() => {});
       } else {
         if (errType === 'auth') {
           if (textChannel) await textChannel.send({ content: `⚠️ Tidak ada versi lain dari **${track?.info?.title}** yang ditemukan. Melewati...` }).catch(() => {});
         } else {
           if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('generic', track?.info?.title) }).catch(() => {});
         }
-        // Tidak ada fallback — autoSkip akan advance dengan sendirinya.
-        // Hanya paksa maju jika player benar-benar stuck (tidak playing & tidak paused).
-        if (!player.playing && !player.paused && player.queue.tracks.length > 0) {
-          await player.skip().catch(() => {});
-        }
+        await player.skip().catch(() => {});
       }
     } catch (err) {
       logger.error(`trackError handler error: ${err.message}`);
