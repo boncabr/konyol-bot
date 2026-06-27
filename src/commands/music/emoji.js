@@ -27,8 +27,7 @@ async function handleEmoji(client, ctx, args) {
         || player.voiceChannelId
         || player.options?.voiceChannelId;
       if (vcId) {
-        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
-        const status = `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
+        const status = `**${cleanTitle(track.info.title)}**`;
         await setVoiceStatus(client, guildId, vcId, status);
       }
     }
@@ -94,8 +93,7 @@ async function handleEmoji(client, ctx, args) {
       const player = client.lavalink.getPlayer(guildId);
       if (player?.queue?.current) {
         const track = player.queue.current;
-        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
-        const status = `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
+        const status = `**${cleanTitle(track.info.title)} 𝒃𝒚 ${cleanTitle(track.author}**`;
         await setVoiceStatus(client, guildId, player.voiceChannelId, status).catch(() => {});
       }
       const resetEmbed = createEmbed({
@@ -146,9 +144,9 @@ async function handleEmoji(client, ctx, args) {
       logger.debug(`emoji setVoiceStatus: vcId=${vcId} guildId=${guildId}`);
 
       if (vcId) {
-        const status = `**${emoji}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
+        const status = `${emoji} **${cleanTitle(track.info.title)}**`;
         await setVoiceStatus(client, guildId, vcId, status);
-        preview = `\n\n🎵 Voice status: \`${emoji}${track.info.title} 𝒃𝒚 ${track.info.author}\``;
+        preview = `\n\n🎵 Voice status: \`${emoji} ${cleanTitle(track.info.title)}\``;
       } else {
         logger.warn(`emoji: cannot find voiceChannelId in guild ${guildId}`);
         preview = `\n\n_(Emoji akan tampil di voice status saat track berikutnya mulai)_`;
