@@ -31,24 +31,7 @@ async function handlePlay(client, ctx, queryStr) {
       : ctx.reply({ embeds: [embed] });
   }
 
-  const isUrl = /^https?:\/\//i.test(query);
-
-  // Slash command: defer agar Discord tidak timeout
   if (isInteraction) await ctx.deferReply();
-
-  // Chat command dengan URL: kirim pesan loading segera agar user tahu bot sedang bekerja
-  let loadingMsg = null;
-  if (!isInteraction && isUrl) {
-    loadingMsg = await channel.send({ content: '⏳ Memuat playlist, mohon tunggu...' }).catch(() => null);
-  }
-
-  const sendResult = async (payload) => {
-    if (isInteraction) return ctx.editReply(payload);
-    if (loadingMsg) {
-      await loadingMsg.delete().catch(() => {});
-    }
-    return channel.send(payload);
-  };
 
   try {
     setRadioMode(ctx.guild.id, false);
@@ -67,7 +50,7 @@ async function handlePlay(client, ctx, queryStr) {
         `Tidak ada hasil untuk: **${query}**\n` +
         `Coba nama lagu yang berbeda atau tempel URL langsung.`
       );
-      return sendResult({ embeds: [embed] });
+      return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
     }
 
     let tracks = [];
@@ -82,7 +65,7 @@ async function handlePlay(client, ctx, queryStr) {
     } else {
       tracks = [result.tracks[0]];
       const track = tracks[0];
-      description = `🎵 Menambahkan [**${track.info.title} 𝒃𝒚 ${track.info.author}**](${track.info.uri})${platformTag} ke antrean.`;
+      description = `🎵 Menambahkan [**${track.info.title}**](${track.info.uri}) oleh **${track.info.author}**${platformTag} ke antrean.`;
     }
 
     await play(player, tracks);
@@ -98,11 +81,13 @@ async function handlePlay(client, ctx, queryStr) {
     });
     if (tracks[0]?.info?.artworkUrl) embed.setThumbnail(tracks[0].info.artworkUrl);
 
-    return sendResult({ embeds: [embed] });
+    return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
   } catch (err) {
     const errMsg = err.message || 'Gagal memutar lagu. Coba lagi.';
     const embed = errorEmbed(errMsg);
-    return sendResult({ embeds: [embed] }).catch(() => {});
+    return isInteraction
+      ? ctx.editReply({ embeds: [embed] }).catch(() => {})
+      : ctx.reply({ embeds: [embed] }).catch(() => {});
   }
 }
 
