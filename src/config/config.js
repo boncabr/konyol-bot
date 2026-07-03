@@ -7,7 +7,7 @@ module.exports = {
   guildId: process.env.GUILD_ID || null,
 
   lavalink: {
-        nodes: [
+    nodes: [
       // Node 1 – primary (Railway self-hosted, kualitas terbaik)
       {
         id: 'primary',
@@ -15,14 +15,6 @@ module.exports = {
         port: parseInt(process.env.LAVALINK_PORT || '443'),
         password: process.env.LAVALINK_PASSWORD || 'Ariekonur0',
         secure: process.env.LAVALINK_SECURE !== 'false',
-      },
-      // Node 2 – fallback cadangan jika Railway offline
-      {
-        id: 'fallback-1',
-        host: 'lavalink.devamop.in',
-        port: 443,
-        password: 'DevAmOP',
-        secure: true,
       },
     ],
   },
@@ -43,8 +35,7 @@ module.exports = {
     searchPlatform: 'ytsearch',
     leaveOnEmptyDelay: 30000,
     leaveOnEndDelay: 30000,
-    voiceChannelBitrate: 256000, // 256 kbps (requires server boost level 2+)
-
+    voiceChannelBitrate: 256000,
   },
 
   cooldowns: {
