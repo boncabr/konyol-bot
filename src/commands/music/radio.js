@@ -27,14 +27,13 @@ async function handleRadio(client, ctx, args) {
   const member  = ctx.member;
   const channel = ctx.channel;
 
-  // If no args → show station list
   const query = isInteraction
     ? ctx.options.getString('station')
     : args.join(' ').trim();
 
   if (!query) {
     const embed = stationListEmbed();
-    return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
+    return ctx.reply({ embeds: [embed] });
   }
 
   if (!member.voice?.channelId) {
@@ -67,21 +66,24 @@ async function handleRadio(client, ctx, args) {
       channel.id
     );
 
-    // Enable radio mode — bot will not leave VC when empty
     setRadioMode(ctx.guild.id, true);
 
     const result = await search(player, station.url, isInteraction ? ctx.user : ctx.author);
 
-    if (!result || result.loadType === 'error' || result.loadType === 'empty') {
+    if (!result || result.loadType === 'error' || result.loadType === 'empty' || !result.tracks?.length) {
       setRadioMode(ctx.guild.id, false);
       const embed = errorEmbed(`Gagal memuat stasiun **${station.name}**. Coba lagi nanti.`);
       return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
     }
 
-    // Clear current queue and play radio stream
-    await player.queue.splice(0, player.queue.tracks.length).catch(() => {});
-    const tracks = result.tracks?.length ? [result.tracks[0]] : [];
-    await play(player, tracks);
+    // Bersihkan queue dengan benar (player.queue.clear() bukan splice)
+    if (player.playing || player.paused) {
+      await player.stopPlaying(true, false);
+    }
+    player.queue.clear();
+
+    const track = result.tracks[0];
+    await play(player, [track]);
 
     const embed = createEmbed({
       color: config.colors.success,
@@ -91,13 +93,15 @@ async function handleRadio(client, ctx, args) {
         `> Bot tidak akan keluar dari VC meskipun channel kosong.\n` +
         `> Ketik \`?stop\` untuk menghentikan radio.`,
     });
-    if (tracks[0]?.info?.artworkUrl) embed.setThumbnail(tracks[0].info.artworkUrl);
+    if (track?.info?.artworkUrl) embed.setThumbnail(track.info.artworkUrl);
 
     return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
   } catch (err) {
     setRadioMode(ctx.guild.id, false);
     const embed = errorEmbed(err.message || 'Gagal memutar radio. Coba lagi nanti.');
-    return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
+    return isInteraction
+      ? ctx.editReply({ embeds: [embed] }).catch(() => {})
+      : ctx.reply({ embeds: [embed] }).catch(() => {});
   }
 }
 
