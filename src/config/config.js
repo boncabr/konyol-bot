@@ -8,12 +8,11 @@ module.exports = {
 
   lavalink: {
     nodes: [
-      // Node 1 – primary (Railway self-hosted, kualitas terbaik)
       {
         id: 'primary',
-        host: process.env.LAVALINK_HOST || 'lavalink-2026-production-dc77.up.railway.app',
+        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
         port: parseInt(process.env.LAVALINK_PORT || '443'),
-        password: process.env.LAVALINK_PASSWORD || 'Ariekonur0',
+        password: process.env.LAVALINK_PASSWORD || 'https://dsc.gg/ajidevserver',
         secure: process.env.LAVALINK_SECURE !== 'false',
       },
     ],
