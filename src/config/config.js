@@ -20,11 +20,11 @@ module.exports = {
 
   radio: {
     stations: [
-      { name: 'Lofi Girl',       url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk', emoji: '📻' },
-      { name: 'Synthwave Radio', url: 'https://www.youtube.com/watch?v=4xDzrJKXOOY', emoji: '🌆' },
-      { name: 'Jazz & Blues',    url: 'https://www.youtube.com/watch?v=Dx5qFachd3A', emoji: '🎷' },
-      { name: 'Chillhop',        url: 'https://www.youtube.com/watch?v=7NOSDKb0HlU', emoji: '🐸' },
-      { name: 'Deep Focus',      url: 'https://www.youtube.com/watch?v=5qap5aO4i9A', emoji: '🧘' },
+      { name: 'Lofi Girl',       url: 'https://ice6.somafm.com/lush-128-mp3',       emoji: '📻' },
+      { name: 'Synthwave Radio', url: 'https://ice6.somafm.com/synphaera-128-mp3',  emoji: '🌆' },
+      { name: 'Jazz & Blues',    url: 'https://ice4.somafm.com/jazz24-128-mp3',     emoji: '🎷' },
+      { name: 'Chillhop',        url: 'https://ice6.somafm.com/groovesalad-128-mp3', emoji: '🐸' },
+      { name: 'Deep Focus',      url: 'https://ice6.somafm.com/dronezone-128-mp3',  emoji: '🧘' },
     ],
   },
 
