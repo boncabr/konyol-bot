@@ -80,7 +80,7 @@ async function handleRadio(client, ctx, args) {
     if (player.playing || player.paused) {
       await player.stopPlaying(true, false);
     }
-    player.queue.clear();
+    if (player.queue.tracks.length > 0) await player.queue.splice(0, player.queue.tracks.length);
 
     const track = result.tracks[0];
     await play(player, [track]);
