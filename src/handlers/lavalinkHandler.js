@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const { setVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
@@ -71,10 +71,13 @@ async function loadLavalinkEvents(client) {
       const voiceChannel = client.channels.cache.get(player.voiceChannelId);
       if (voiceChannel) {
         const voiceEmoji = getVoiceEmoji(player.guildId);
+        const radioStation = isRadioMode(player.guildId) ? getRadioStation(player.guildId) : null;
         const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
+        const displayTitle = radioStation ? `📻 Radio: ${radioStation}` : track.info.title;
+        const displayAuthor = radioStation ? 'Radio Mode' : track.info.author;
         const status = voiceEmoji
-          ? `**${voiceEmoji}${track.info.title} 𝒃𝒚 ${track.info.author}**`
-          : `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
+          ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
+          : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, status);
       }
 

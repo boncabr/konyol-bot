@@ -4,6 +4,7 @@ const config = require('../config/config');
 const autoplayMap = new Map();
 const musicCacheMap = new Map();
 const radioModeMap = new Map();
+const radioStationMap = new Map();
 const seedMap = new Map();            // { title, author, uri, identifier }
 const autoplayHistoryMap = new Map(); // Set<uri> — sudah diputar dalam sesi autoplay
 const voiceEmojiMap = new Map();      // guildId → custom emoji string
@@ -11,6 +12,8 @@ const voiceEmojiMap = new Map();      // guildId → custom emoji string
 // ─── Radio Mode ───────────────────────────────────────────────────────────────
 
 function setRadioMode(guildId, enabled) { radioModeMap.set(guildId, enabled); }
+function setRadioStation(guildId, name) { radioStationMap.set(guildId, name); }
+function getRadioStation(guildId) { return radioStationMap.get(guildId) || null; }
 function isRadioMode(guildId) { return radioModeMap.get(guildId) === true; }
 
 // ─── Player Management ───────────────────────────────────────────────────────
@@ -315,6 +318,8 @@ function cleanTitle(title) {
 }
 module.exports = {
   setRadioMode,
+  setRadioStation,
+  getRadioStation,
   isRadioMode,
   getOrCreatePlayer,
   search,

@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getOrCreatePlayer, play, search, setRadioMode } = require('../../music/MusicManager');
+const { getOrCreatePlayer, play, search, setRadioMode, setRadioStation } = require('../../music/MusicManager');
 const { successEmbed, errorEmbed, createEmbed } = require('../../utils/embeds');
 const config = require('../../config/config');
 
@@ -67,6 +67,7 @@ async function handleRadio(client, ctx, args) {
     );
 
     setRadioMode(ctx.guild.id, true);
+    setRadioStation(ctx.guild.id, station.name);
 
     const result = await search(player, station.url, isInteraction ? ctx.user : ctx.author);
 
