@@ -37,25 +37,24 @@ module.exports = {
 
     if (boosters.size === 0) {
       const embed = createEmbed({
-        color: config.colors.warning,
-        title: '<a:boost:1221921763320004668> Server Boost',
-        description: 'Belum ada member yang sedang boost server ini.',
+        color: 0xFF73FA,
+        description: '<a:boost:1221921763320004668> Server boost\n\nBelum ada member yang sedang boost server ini.',
         footer: `Total boost aktif: ${guild.premiumSubscriptionCount ?? 0}`,
       });
       return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
     }
 
-    const list = boosters.map((m, i) => {
+    const boosterKeys = [...boosters.keys()];
+    const list = boosterKeys.map((id, index) => {
+      const m = boosters.get(id);
       const count = m.premiumSubscriptionCount ?? 1;
-      const index = [...boosters.keys()].indexOf(m.id) + 1;
       const boostText = count > 1 ? ` **(x${count})**` : '';
-      return `\`${index}.\` ${m} (${m.user.username})${boostText}`;
+      return `\`${index + 1}.\` ${m} (${m.user.username})${boostText}`;
     });
 
     const embed = createEmbed({
       color: 0xFF73FA,
-      title: '<a:boost:1221921763320004668> Server Boost',
-      description: list.join('\n'),
+      description: `<a:boost:1221921763320004668> Server boost\n\n${list.join('\n')}`,
       footer: `Total boost aktif: ${guild.premiumSubscriptionCount ?? 0} • Total booster: ${boosters.size}`,
     });
 
