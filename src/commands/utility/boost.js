@@ -38,7 +38,7 @@ module.exports = {
     if (boosters.size === 0) {
       const embed = createEmbed({
         color: 0xFF73FA,
-        description: '<a:boost:1221921763320004668> Server boost active now!!!\n\nBelum ada member yang sedang boost server ini.',
+        description: '<:emoji_8:1524086846165094570> Server boost active now!!!\n\nBelum ada member yang sedang boost server ini.',
         footer: `Total boost aktif: ${guild.premiumSubscriptionCount ?? 0}`,
       });
       return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
@@ -54,7 +54,7 @@ module.exports = {
 
     const embed = createEmbed({
       color: 0xFF73FA,
-      description: `<a:boost:1221921763320004668> Server boost active now!!!\n\n${list.join('\n')}`,
+      description: `<:emoji_8:1524086846165094570> Server boost active now!!!\n\n${list.join('\n')}`,
       footer: `Total boost aktif: ${guild.premiumSubscriptionCount ?? 0} • Total booster: ${boosters.size}`,
     });
 
