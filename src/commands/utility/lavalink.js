@@ -29,12 +29,9 @@ module.exports = {
       const connected = node.connected;
       if (connected) anyConnected = true;
 
-      const host = node.options?.host || 'unknown';
-      const port = node.options?.port || '?';
       const secure = node.options?.secure ? 'wss' : 'ws';
       const status = connected ? '🟢 Terhubung' : '🔴 Tidak Terhubung';
 
-      // Stats (only available when connected)
       let statsText = '';
       if (connected && node.stats) {
         const s = node.stats;
@@ -47,12 +44,11 @@ module.exports = {
 
       fields.push({
         name: `${status} — \`${node.id}\``,
-        value: `**Host:** ${secure}://${host}:${port}${statsText}`,
+        value: `**Host:** ${secure}://[hidden]:***${statsText}`,
         inline: false,
       });
     }
 
-    // Active players info
     const allPlayers = client.lavalink?.players;
     const playerCount = allPlayers ? [...allPlayers.values()].length : 0;
 
@@ -61,7 +57,7 @@ module.exports = {
       title: `${anyConnected ? '✅' : '❌'} Status Lavalink`,
       description: anyConnected
         ? `Server musik **terhubung**. Bot aktif di **${playerCount}** voice channel.`
-        : `⚠️ **Semua node Lavalink terputus!**\n\nBot sedang mencoba reconnect otomatis setiap 5 detik.\n\nJika masalah berlanjut:\n• Cek Railway dashboard dan restart service **Lavalink**\n• Atau set \`LAVALINK_HOST_2\` di env Railway untuk node cadangan`,
+        : `⚠️ **Semua node Lavalink terputus!**\n\nBot sedang mencoba reconnect otomatis setiap 5 detik.`,
       fields,
       footer: `Prefix command: ${config.prefix}lavalink | Total node: ${nodes.size}`,
     });
