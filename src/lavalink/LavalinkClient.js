@@ -1,6 +1,7 @@
 const { LavalinkManager } = require('lavalink-client');
 const config = require('../config/config');
 const logger = require('../utils/logger');
+const { handleNodeFailure, resetNodeFailCount } = require('../utils/lavalinkRecovery');
 
 function buildNodes() {
   return config.lavalink.nodes.map((n) => ({
@@ -64,15 +65,18 @@ function createLavalinkManager(client) {
 
   manager.on('nodeConnect', (node) => {
     logger.info(`✅ Lavalink node [${node.id}] (${node.options?.host}) terhubung`);
+    resetNodeFailCount(node.id);
   });
 
   manager.on('nodeDisconnect', (node, reason) => {
     logger.warn(`⚠️  Lavalink node [${node.id}] terputus: ${reason?.reason || 'unknown'} — mencoba reconnect...`);
+    handleNodeFailure(node.id).catch(() => {});
   });
 
   manager.on('nodeError', (node, error) => {
     const msg = error?.message || (typeof error === 'string' ? error : 'connection error');
     logger.error(`❌ Lavalink node [${node?.id || 'unknown'}] error: ${msg}`);
+    handleNodeFailure(node?.id || 'unknown').catch(() => {});
   });
 
   manager.on('nodeReconnect', (node) => {
