@@ -8,10 +8,11 @@ let lastRedeployAt = 0;
 
 async function triggerRailwayRedeploy() {
   const token = process.env.RAILWAY_TOKEN;
-  const serviceId = process.env.RAILWAY_SERVICE_ID;
+  const serviceId = process.env.RAILWAY_SERVICE_ID || 'c378a5db-f1db-4d19-b69f-a8e715597ff5';
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID || '39acb9dd-a35a-42ef-b6f0-c31823f3c545';
 
-  if (!token || !serviceId) {
-    logger.warn('[Recovery] RAILWAY_TOKEN atau RAILWAY_SERVICE_ID tidak diset — skip redeploy');
+  if (!token) {
+    logger.warn('[Recovery] RAILWAY_TOKEN tidak diset — skip redeploy');
     return false;
   }
 
@@ -23,7 +24,7 @@ async function triggerRailwayRedeploy() {
 
   const query = `
     mutation {
-      serviceInstanceRedeploy(serviceId: "${serviceId}")
+      serviceInstanceRedeploy(serviceId: "${serviceId}", environmentId: "${environmentId}")
     }
   `;
 
