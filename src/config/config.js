@@ -1,5 +1,29 @@
 require('dotenv').config();
 
+function buildNodes() {
+  const nodes = [
+    {
+      id: 'primary',
+      host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
+      port: parseInt(process.env.LAVALINK_PORT || '443'),
+      password: process.env.LAVALINK_PASSWORD || 'Ariekonur0',
+      secure: process.env.LAVALINK_SECURE !== 'false',
+    },
+  ];
+
+  if (process.env.LAVALINK_HOST_2) {
+    nodes.push({
+      id: 'secondary',
+      host: process.env.LAVALINK_HOST_2,
+      port: parseInt(process.env.LAVALINK_PORT_2 || '2333'),
+      password: process.env.LAVALINK_PASSWORD_2 || 'Ariekonur0',
+      secure: process.env.LAVALINK_SECURE_2 === 'true',
+    });
+  }
+
+  return nodes;
+}
+
 module.exports = {
   prefix: process.env.PREFIX || '?',
   token: process.env.DISCORD_TOKEN,
@@ -7,15 +31,7 @@ module.exports = {
   guildId: process.env.GUILD_ID || null,
 
   lavalink: {
-    nodes: [
-      {
-        id: 'primary',
-        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
-        port: parseInt(process.env.LAVALINK_PORT || '443'),
-        password: process.env.LAVALINK_PASSWORD || 'https://dsc.gg/ajidevserver',
-        secure: process.env.LAVALINK_SECURE !== 'false',
-      },
-    ],
+    nodes: buildNodes(),
   },
 
   radio: {
