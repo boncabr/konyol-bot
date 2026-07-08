@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getOrCreatePlayer, search, play, setRadioMode, setSeed } = require('../../music/MusicManager');
+const { getOrCreatePlayer, search, play, setRadioMode, setSeed, getAutoplay, setAutoplay } = require('../../music/MusicManager');
 const { successEmbed, errorEmbed, createEmbed } = require('../../utils/embeds');
 const config = require('../../config/config');
 
@@ -53,6 +53,17 @@ async function handlePlay(client, ctx, queryStr) {
       return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
     }
 
+    // Jika autoplay sedang aktif → bersihkan lagu autoplay dari queue & matikan autoplay
+    if (getAutoplay(ctx.guild.id)) {
+      const queueTracks = player.queue.tracks;
+      const autoplayTracks = queueTracks.filter(t => t.requester?.isAutoplay === true);
+      for (const track of autoplayTracks) {
+        const idx = player.queue.tracks.indexOf(track);
+        if (idx !== -1) player.queue.tracks.splice(idx, 1);
+      }
+      setAutoplay(ctx.guild.id, false);
+    }
+
     let tracks = [];
     let description = '';
     const platform = platformLabel(query);
@@ -70,7 +81,7 @@ async function handlePlay(client, ctx, queryStr) {
 
     await play(player, tracks);
 
-    // Set seed ke lagu pertama yang diminta user — autoplay akan mengikuti dari sini
+    // Update seed ke lagu yang baru di-request
     setSeed(ctx.guild.id, tracks[0]);
 
     const isNowPlaying = !player.queue.previous && player.queue.tracks.length <= tracks.length;
