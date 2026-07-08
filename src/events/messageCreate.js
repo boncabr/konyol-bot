@@ -5,6 +5,9 @@ const { setAutoplay, getAutoplay } = require('../music/MusicManager');
 const config = require('../config/config');
 const logger = require('../utils/logger');
 
+// Command yang TIDAK mematikan autoplay saat dijalankan
+const AUTOPLAY_SAFE_COMMANDS = new Set(['autoplay', 'play', 'skip', 'volume', 'nowplaying', 'queue']);
+
 module.exports = {
   name: 'messageCreate',
   async execute(client, message) {
@@ -30,8 +33,8 @@ module.exports = {
       });
     }
 
-    // Jika user menjalankan perintah apapun SELAIN ?autoplay, matikan autoplay
-    if (commandName !== 'autoplay' && getAutoplay(message.guild.id)) {
+    // Matikan autoplay hanya jika command bukan bagian dari AUTOPLAY_SAFE_COMMANDS
+    if (!AUTOPLAY_SAFE_COMMANDS.has(commandName) && getAutoplay(message.guild.id)) {
       setAutoplay(message.guild.id, false);
       logger.debug(`Autoplay dimatikan karena command "${commandName}" di guild ${message.guild.id}`);
     }
