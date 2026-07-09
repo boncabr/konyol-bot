@@ -1,16 +1,20 @@
 require('dotenv').config();
 
 function buildNodes() {
-  const nodes = [
-    {
-      id: 'primary',
-      host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
-      port: parseInt(process.env.LAVALINK_PORT || '443'),
-      password: process.env.LAVALINK_PASSWORD || 'Ariekonur0',
-      secure: process.env.LAVALINK_SECURE !== 'false',
-    },
-  ];
+  const nodes = [];
 
+  // Node utama — dari env var atau default
+  nodes.push({
+    id: 'primary',
+    host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
+    port: parseInt(process.env.LAVALINK_PORT || '443'),
+    password: process.env.LAVALINK_PASSWORD || 'Ariekonur0',
+    secure: process.env.LAVALINK_SECURE !== 'false',
+    retryAmount: 10,
+    retryDelay: 5000,
+  });
+
+  // Node kedua — dari env var jika diset
   if (process.env.LAVALINK_HOST_2) {
     nodes.push({
       id: 'secondary',
@@ -18,8 +22,32 @@ function buildNodes() {
       port: parseInt(process.env.LAVALINK_PORT_2 || '2333'),
       password: process.env.LAVALINK_PASSWORD_2 || 'Ariekonur0',
       secure: process.env.LAVALINK_SECURE_2 === 'true',
+      retryAmount: 10,
+      retryDelay: 5000,
     });
   }
+
+  // Fallback publik — selalu aktif sebagai cadangan terakhir
+  nodes.push(
+    {
+      id: 'fallback-1',
+      host: 'lavalink.darrennathanael.com',
+      port: 443,
+      password: 'youshallnotpass',
+      secure: true,
+      retryAmount: 5,
+      retryDelay: 10000,
+    },
+    {
+      id: 'fallback-2',
+      host: 'lavalinkv4.serenetia.com',
+      port: 443,
+      password: 'https://dsc.gg/ajidevserver',
+      secure: true,
+      retryAmount: 5,
+      retryDelay: 10000,
+    }
+  );
 
   return nodes;
 }
