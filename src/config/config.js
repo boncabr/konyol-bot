@@ -1,48 +1,5 @@
 require('dotenv').config();
 
-function buildNodes() {
-  const nodes = [];
-
-  // Node utama — dari env var atau default
-  nodes.push({
-    id: 'primary',
-    host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
-    port: parseInt(process.env.LAVALINK_PORT || '80'),
-    password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
-    secure: process.env.LAVALINK_SECURE === 'true',
-    retryAmount: 10,
-    retryDelay: 5000,
-  });
-
-  // Node kedua — dari env var jika diset
-  if (process.env.LAVALINK_HOST_2) {
-    nodes.push({
-      id: 'secondary',
-      host: process.env.LAVALINK_HOST_2,
-      port: parseInt(process.env.LAVALINK_PORT_2 || '2333'),
-      password: process.env.LAVALINK_PASSWORD_2 || 'https://seretia.link/discord',
-      secure: process.env.LAVALINK_SECURE_2 === 'true',
-      retryAmount: 10,
-      retryDelay: 5000,
-    });
-  }
-
-  // Fallback publik — selalu aktif sebagai cadangan terakhir
-  nodes.push(
-    {
-      id: 'fallback-1',
-      host: 'lavalink.darrennathanael.com',
-      port: 443,
-      password: 'youshallnotpass',
-      secure: true,
-      retryAmount: 5,
-      retryDelay: 10000,
-    }
-  );
-
-  return nodes;
-}
-
 module.exports = {
   prefix: process.env.PREFIX || '?',
   token: process.env.DISCORD_TOKEN,
@@ -50,7 +7,17 @@ module.exports = {
   guildId: process.env.GUILD_ID || null,
 
   lavalink: {
-    nodes: buildNodes(),
+    nodes: [
+      {
+        id: 'primary',
+        host: 'lavalinkv4.serenetia.com',
+        port: 80,
+        password: 'https://seretia.link/discord',
+        secure: false,
+        retryAmount: 10,
+        retryDelay: 5000,
+      },
+    ],
   },
 
   radio: {
