@@ -3,6 +3,31 @@ const config = require('../config/config');
 const logger = require('../utils/logger');
 const { handleNodeFailure, resetNodeFailCount } = require('../utils/lavalinkRecovery');
 
+/**
+ * Apply TLS settings per-node:
+ * - secure: false  → plain WebSocket (ws://), no TLS involved
+ * - secure: true, selfSigned: false → wss:// with CA-verified cert (default, aman)
+ * - secure: true, selfSigned: true  → wss:// dengan self-signed cert, disable verify hanya untuk ini
+ */
+function applyTlsSettings(nodes) {
+  const selfSignedNodes = nodes.filter((n) => n.secure && n.selfSigned);
+  const plainNodes = nodes.filter((n) => !n.secure);
+
+  if (selfSignedNodes.length > 0) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    logger.warn(
+      `[TLS] NODE_TLS_REJECT_UNAUTHORIZED=0 diaktifkan karena node berikut pakai self-signed cert: ` +
+      selfSignedNodes.map((n) => n.id).join(', ') +
+      `. Gunakan LAVALINK_SELF_SIGNED=false jika server sudah pakai certificate dari CA resmi.`
+    );
+  } else {
+    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    if (plainNodes.length > 0) {
+      logger.info(`[TLS] Node tanpa SSL: ${plainNodes.map((n) => n.id).join(', ')} (ws://, no TLS)`);
+    }
+  }
+}
+
 function buildNodes() {
   return config.lavalink.nodes.map((n) => ({
     authorization: n.password,
@@ -10,6 +35,7 @@ function buildNodes() {
     port: n.port,
     id: n.id,
     secure: n.secure,
+    selfSigned: n.selfSigned,
     retryAmount: 50,
     retryDelay: 5000,
     closeOnError: false,
@@ -18,7 +44,9 @@ function buildNodes() {
 
 function createLavalinkManager(client) {
   const nodes = buildNodes();
-  logger.info(`Configuring ${nodes.length} Lavalink node(s): ${nodes.map((n) => n.id).join(', ')}`);
+  applyTlsSettings(nodes);
+
+  logger.info(`Configuring ${nodes.length} Lavalink node(s): ${nodes.map((n) => `${n.id} (${n.secure ? 'SSL' : 'no-SSL'}${n.selfSigned ? '/self-signed' : ''})`).join(', ')}`);
 
   const manager = new LavalinkManager({
     nodes,
