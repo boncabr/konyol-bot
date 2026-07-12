@@ -10,10 +10,12 @@ module.exports = {
     nodes: [
       {
         id: 'primary',
-        host: 'lavalinkv4.serenetia.com',
-        port: 443,
-        password: 'https://seretia.link/discord',
-        secure: true,
+        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
+        port: parseInt(process.env.LAVALINK_PORT || '443'),
+        password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
+        secure: process.env.LAVALINK_SECURE === 'true',
+        // Set true jika server pakai self-signed certificate (bukan cert dari CA resmi)
+        selfSigned: process.env.LAVALINK_SELF_SIGNED === 'true',
         retryAmount: 10,
         retryDelay: 5000,
       },
@@ -25,7 +27,7 @@ module.exports = {
       { name: 'Lofi Girl',       url: 'https://ice6.somafm.com/lush-128-mp3',       emoji: '📻' },
       { name: 'Synthwave Radio', url: 'https://ice6.somafm.com/synphaera-128-mp3',  emoji: '🌆' },
       { name: 'Jazz & Blues',    url: 'https://ice4.somafm.com/jazz24-128-mp3',     emoji: '🎷' },
-      { name: 'Chillhop',        url: 'https://ice6.somafm.com/groovesalad-128-mp3', emoji: '🐸' },
+      { name: 'Chillhop',       url: 'https://ice6.somafm.com/groovesalad-128-mp3', emoji: '🐸' },
       { name: 'Deep Focus',      url: 'https://ice6.somafm.com/dronezone-128-mp3',  emoji: '🧘' },
     ],
   },
