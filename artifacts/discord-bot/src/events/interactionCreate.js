@@ -8,23 +8,6 @@ const logger = require('../utils/logger');
 module.exports = {
   name: 'interactionCreate',
   async execute(client, interaction) {
-    // ── Button interactions (EQ menu, dll) ──────────────────────────────────
-    if (interaction.isButton()) {
-      if (interaction.customId.startsWith('eq:')) {
-        const { handleEqButton } = require('../commands/music/eq');
-        try {
-          await handleEqButton(client, interaction);
-        } catch (err) {
-          logger.error(`EQ button error: ${err.stack}`);
-          if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: '❌ Terjadi kesalahan saat menerapkan preset.', ephemeral: true }).catch(() => {});
-          }
-        }
-        return;
-      }
-      return;
-    }
-
     // ── Slash commands ───────────────────────────────────────────────────────
     if (!interaction.isChatInputCommand()) return;
 
