@@ -76,7 +76,7 @@ async function search(player, query, requester) {
   } catch (err) {
     logger.warn(`Primary search failed (${source}): ${err.message}. Trying fallback...`);
     try {
-      result = await player.search({ query, source: 'ytsearch' }, requester);
+      result = await player.search({ query, source: 'scsearch' }, requester);
     } catch (fallbackErr) {
       logger.error(`Fallback search also failed: ${fallbackErr.message}`);
       throw new Error('Tidak ada hasil yang ditemukan. Coba query yang berbeda.');
@@ -241,7 +241,7 @@ async function handleAutoplay(client, player) {
   if (tracksToAdd.length === 0 && isYtId) {
     const mixSearchQuery = `${seed.title} ${seed.author} mix`;
     try {
-      const result = await player.search({ query: mixSearchQuery, source: 'ytsearch' }, requester);
+      const result = await player.search({ query: mixSearchQuery, source: 'ytmsearch' }, requester);
       if (result?.loadType === 'playlist' && result.tracks?.length > 0) {
         tracksToAdd = result.tracks
           .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri))
@@ -255,7 +255,7 @@ async function handleAutoplay(client, player) {
   // ── Strategi 3: Fallback keyword search — ambil 1 lagu terkait ───────────────
   if (tracksToAdd.length === 0) {
     const query = `${seed.title} ${seed.author}`;
-    for (const source of ['ytmsearch', 'ytsearch']) {
+    for (const source of ['ytmsearch', 'scsearch']) {
       try {
         const result = await player.search({ query, source }, requester);
         if (result?.tracks?.length > 0) {
