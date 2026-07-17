@@ -75,11 +75,19 @@ async function search(player, query, requester) {
     result = await player.search({ query, source }, requester);
   } catch (err) {
     logger.warn(`Primary search failed (${source}): ${err.message}. Trying fallback...`);
-    try {
-      result = await player.search({ query, source: 'scsearch' }, requester);
-    } catch (fallbackErr) {
-      logger.error(`Fallback search also failed: ${fallbackErr.message}`);
-      throw new Error('Tidak ada hasil yang ditemukan. Coba query yang berbeda.');
+    result = null;
+  }
+
+  // Jika primary search kosong atau gagal, fallback ke SoundCloud
+  if (!result || result.loadType === 'empty' || !result.tracks?.length) {
+    if (source !== 'scsearch') {
+      logger.info(`Search empty for source=${source}, fallback ke scsearch...`);
+      try {
+        result = await player.search({ query, source: 'scsearch' }, requester);
+      } catch (fallbackErr) {
+        logger.error(`Fallback scsearch juga gagal: ${fallbackErr.message}`);
+        throw new Error('Tidak ada hasil yang ditemukan. Coba query yang berbeda.');
+      }
     }
   }
 
