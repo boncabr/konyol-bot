@@ -35,7 +35,18 @@ async function handleSkip(client, ctx) {
   }
 
   try {
-    await player.skip();
+    // player.skip() bisa gagal diam-diam jika state player ambigu (baru ganti lagu,
+    // buffer, dll). stopPlaying(false, false) memaksa lagu saat ini berhenti dan
+    // maju ke track berikutnya di queue secara andal.
+    try {
+      await player.skip();
+      // Verifikasi benar-benar maju; jika tidak, paksa dengan stopPlaying
+      if (player.queue.current === current) {
+        await player.stopPlaying(false, false);
+      }
+    } catch (skipErr) {
+      await player.stopPlaying(false, false);
+    }
   } catch (err) {
     const embed = errorEmbed(`Gagal melewati lagu: ${err.message}`);
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
@@ -60,3 +71,4 @@ module.exports = {
     await handleSkip(client, ctx);
   },
 };
+
