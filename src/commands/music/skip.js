@@ -35,6 +35,7 @@ async function handleSkip(client, ctx) {
   }
 
   try {
+    await player.skip();
     // player.skip() bisa gagal diam-diam jika state player ambigu (baru ganti lagu,
     // buffer, dll). stopPlaying(false, false) memaksa lagu saat ini berhenti dan
     // maju ke track berikutnya di queue secara andal.
