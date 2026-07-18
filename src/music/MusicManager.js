@@ -62,13 +62,55 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
 
 // ─── Search & Play ───────────────────────────────────────────────────────────
 
+// Normalisasi query untuk pencocokan judul (hapus tanda baca, lowercase, squeeze spaces)
+function normalizeText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[-_]/g, ' ')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Skor kemiripan judul terhadap query — mencegah lagu yang salah terpilih
+function scoreTrack(track, query) {
+  const title = normalizeText(track?.info?.title);
+  const author = normalizeText(track?.info?.author);
+  const q = normalizeText(query);
+  if (!q || !title) return 0;
+  let score = 0;
+  if (title === q) score += 100;
+  if (title.includes(q)) score += 60;
+  // Token overlap (kata per kata)
+  const qTokens = new Set(q.split(' ').filter(Boolean));
+  const tTokens = new Set(title.split(' ').filter(Boolean));
+  let overlap = 0;
+  for (const t of tTokens) if (qTokens.has(t)) overlap++;
+  score += (overlap / Math.max(1, qTokens.size)) * 40;
+  if (author && q.includes(author)) score += 10;
+  return score;
+}
+
+function pickBestTrack(tracks, query) {
+  if (!tracks || tracks.length === 0) return null;
+  let best = tracks[0];
+  let bestScore = scoreTrack(best, query);
+  for (let i = 1; i < tracks.length; i++) {
+    const s = scoreTrack(tracks[i], query);
+    if (s > bestScore) { best = tracks[i]; bestScore = s; }
+  }
+  return best;
+}
+
 async function search(player, query, requester) {
   const isUrl = /^https?:\/\//i.test(query);
   const isSpotify = /open\.spotify\.com/i.test(query);
   const isSoundCloud = /soundcloud\.com/i.test(query);
   const isYoutube = /youtube\.com|youtu\.be/i.test(query);
 
-  let source = config.music.searchPlatform;
+  // Gunakan ytmsearch (YouTube Music) sebagai default — pencocokan judul/audio
+  // jauh lebih akurat daripada ytsearch (YouTube) yang sering salah lagu.
+  let source = config.music.searchPlatform || 'ytmsearch';
   if (isSpotify) source = 'spsearch';
   else if (isSoundCloud) source = 'scsearch';
   else if (isYoutube || isUrl) source = undefined;
@@ -78,11 +120,28 @@ async function search(player, query, requester) {
     result = await player.search({ query, source }, requester);
   } catch (err) {
     logger.warn(`Primary search failed (${source}): ${err.message}. Trying fallback...`);
-    try {
-      result = await player.search({ query, source: 'ytsearch' }, requester);
-    } catch (fallbackErr) {
-      logger.error(`Fallback search also failed: ${fallbackErr.message}`);
+    const fallbacks = ['ytmsearch', 'ytsearch', 'scsearch'];
+    for (const fb of fallbacks) {
+      if (fb === source) continue;
+      try {
+        result = await player.search({ query, source: fb }, requester);
+        if (result && result.loadType !== 'error' && result.tracks?.length > 0) break;
+      } catch (fallbackErr) {
+        logger.warn(`Fallback search [${fb}] failed: ${fallbackErr.message}`);
+      }
+    }
+    if (!result || result.loadType === 'error' || !result.tracks?.length) {
       throw new Error('Tidak ada hasil yang ditemukan. Coba query yang berbeda.');
+    }
+  }
+
+  // Untuk pencarian non-URL, ganti track pertama dengan track yang paling cocok
+  // berdasarkan kemiripan judul — mencegah "judul A, suara B".
+  if (result && result.loadType !== 'playlist' && result.tracks?.length > 1 && !isUrl) {
+    const best = pickBestTrack(result.tracks, query);
+    if (best && best !== result.tracks[0]) {
+      logger.debug(`Search: picked best match "${best.info.title}" over "${result.tracks[0].info.title}"`);
+      result.tracks[0] = best;
     }
   }
 
@@ -299,7 +358,6 @@ function setVoiceEmoji(guildId, emoji) { voiceEmojiMap.set(guildId, emoji); }
 function getVoiceEmoji(guildId) { return voiceEmojiMap.get(guildId) || null; }
 function clearVoiceEmoji(guildId) { voiceEmojiMap.delete(guildId); }
 
-
 function cleanTitle(title) {
   if (!title) return title;
   let t = title;
@@ -339,3 +397,4 @@ module.exports = {
   clearVoiceEmoji,
   cleanTitle,
 };
+
