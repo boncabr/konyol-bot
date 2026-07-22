@@ -30,8 +30,9 @@ module.exports = {
       });
     }
 
-    // Jika user menjalankan perintah apapun SELAIN ?autoplay, matikan autoplay
-    if (commandName !== 'autoplay' && getAutoplay(message.guild.id)) {
+    // Matikan autoplay hanya jika user eksplisit memulai pemutaran baru atau menghentikan bot
+    const AUTOPLAY_RESET_COMMANDS = ['play', 'stop', 'leave'];
+    if (AUTOPLAY_RESET_COMMANDS.includes(commandName) && getAutoplay(message.guild.id)) {
       setAutoplay(message.guild.id, false);
       logger.debug(`Autoplay dimatikan karena command "${commandName}" di guild ${message.guild.id}`);
     }

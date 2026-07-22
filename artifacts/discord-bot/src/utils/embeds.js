@@ -70,7 +70,7 @@ function nowPlayingEmbed(track, player) {
         inline: true,
       },
     ],
-    footer: `Requested by ${info.requester?.username || 'Unknown'}`,
+    footer: `Requested by ${track.requester?.username || track.requester?.globalName || 'Unknown'}`,
   });
 
   return embed;

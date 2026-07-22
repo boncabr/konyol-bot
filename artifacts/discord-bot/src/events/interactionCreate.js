@@ -28,8 +28,9 @@ module.exports = {
       });
     }
 
-    // Jika user menjalankan slash command apapun SELAIN /autoplay, matikan autoplay
-    if (interaction.commandName !== 'autoplay' && interaction.guild && getAutoplay(interaction.guild.id)) {
+    // Matikan autoplay hanya jika user eksplisit memulai pemutaran baru atau menghentikan bot
+    const AUTOPLAY_RESET_COMMANDS = ['play', 'stop', 'leave'];
+    if (AUTOPLAY_RESET_COMMANDS.includes(interaction.commandName) && interaction.guild && getAutoplay(interaction.guild.id)) {
       setAutoplay(interaction.guild.id, false);
       logger.debug(`Autoplay dimatikan karena slash command "/${interaction.commandName}" di guild ${interaction.guild.id}`);
     }

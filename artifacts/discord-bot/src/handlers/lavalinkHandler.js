@@ -85,7 +85,8 @@ async function loadLavalinkEvents(client) {
 
   client.lavalink.on('trackEnd', async (player, track) => {
     try {
-      if (player.queue.tracks.length === 0) {
+      // Jangan hapus voice status jika autoplay aktif — queueEnd yang akan menanganinya
+      if (player.queue.tracks.length === 0 && !getAutoplay(player.guildId)) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
       }
       logger.debug(`Track ended: "${track.info.title}" in guild ${player.guildId}`);
@@ -258,7 +259,10 @@ async function loadLavalinkEvents(client) {
       logger.debug(`Queue ended in guild ${player.guildId}`);
       await handleAutoplay(client, player);
 
-      if (player.queue.tracks.length === 0) {
+      // Tunggu sebentar — handleAutoplay bersifat async dan mungkin baru saja menambah lagu
+      await new Promise((r) => setTimeout(r, 500));
+
+      if (player.queue.tracks.length === 0 && !player.playing) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
         const channel = client.channels.cache.get(player.textChannelId);
         if (channel) {
