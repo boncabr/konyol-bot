@@ -14,6 +14,8 @@ function toBold(str) {
 
 const COPYRIGHT_ERRORS = ['copyright', 'not available in your country', 'blocked', 'unavailable', 'private', 'removed'];
 const YOUTUBE_AUTH_ERRORS = ['requires login', 'all clients failed', 'video player configuration error', 'sign in to confirm', 'bot traffic', 'age-restricted'];
+const PROXY_ERRORS = ['proxy', 'tunnel', '407', 'econnrefused', 'socket hang up', 'ENOTFOUND'];
+const TIMEOUT_ERRORS = ['timeout', 'ETIMEDOUT', 'EHOSTUNREACH', 'abort'];
 const retryingTracks = new Set();
 
 // Track retry attempts for stuck tracks — max 1 retry per URI before giving up
@@ -22,6 +24,8 @@ const stuckRetryMap = new Map();
 function classifyError(message) {
   if (!message) return 'unknown';
   const lower = message.toLowerCase();
+  if (PROXY_ERRORS.some((e) => lower.includes(e))) return 'proxy';
+  if (TIMEOUT_ERRORS.some((e) => lower.includes(e))) return 'timeout';
   if (COPYRIGHT_ERRORS.some((e) => lower.includes(e))) return 'copyright';
   if (YOUTUBE_AUTH_ERRORS.some((e) => lower.includes(e))) return 'auth';
   return 'generic';
@@ -30,6 +34,10 @@ function classifyError(message) {
 function getFriendlyErrorMsg(type, title) {
   const name = title ? `**${title}**` : 'Lagu ini';
   switch (type) {
+    case 'proxy':
+      return `⚠️ ${name} gagal dimuat karena koneksi proxy. Mencoba sumber lain...`;
+    case 'timeout':
+      return `⏱️ ${name} timeout. Mencoba dari sumber lain...`;
     case 'copyright':
       return `⚠️ ${name} dibatasi hak cipta atau tidak tersedia di wilayah ini. Coba lagu lain ya!`;
     case 'auth':
@@ -227,8 +235,8 @@ async function loadLavalinkEvents(client) {
       // Memanggil skip() manual + autoSkip = double-skip → seluruh antrian playlist
       // (misal 25 lagu) habis seketika tanpa ada yang sempat diputar.
 
-      if (errType === 'copyright') {
-        if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('copyright', track?.info?.title) }).catch(() => {});
+      if (errType === 'copyright' || errType === 'proxy' || errType === 'timeout') {
+        if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg(errType, track?.info?.title) }).catch(() => {});
         // autoSkip akan maju dengan sendirinya
         return;
       }
