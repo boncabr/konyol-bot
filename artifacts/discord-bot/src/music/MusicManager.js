@@ -65,7 +65,10 @@ async function search(player, query, requester) {
   const isSoundCloud = /soundcloud\.com/i.test(query);
   const isYoutube = /youtube\.com|youtu\.be/i.test(query);
 
-  let source = config.music.searchPlatform;
+  // Untuk URL langsung: tanpa prefix source (Lavalink deteksi otomatis)
+  // Untuk platform tertentu: gunakan source yang sesuai
+  // Untuk query teks biasa: ytmsearch → ytsearch → scsearch (fallback)
+  let source = config.music.searchPlatform; // default: ytmsearch
   if (isSpotify) source = 'spsearch';
   else if (isSoundCloud) source = 'scsearch';
   else if (isYoutube || isUrl) source = undefined;
@@ -73,21 +76,34 @@ async function search(player, query, requester) {
   let result;
   try {
     result = await player.search({ query, source }, requester);
+    logger.debug(`Search [${source ?? 'url'}] "${query}" → ${result?.tracks?.length ?? 0} hasil`);
   } catch (err) {
     logger.warn(`Primary search failed (${source}): ${err.message}. Trying fallback...`);
     result = null;
   }
 
-  // Jika primary search kosong atau gagal, fallback ke SoundCloud
+  // Fallback chain untuk query teks: ytmsearch → ytsearch → scsearch
   if (!result || result.loadType === 'empty' || !result.tracks?.length) {
-    if (source !== 'scsearch') {
-      logger.info(`Search empty for source=${source}, fallback ke scsearch...`);
+    const fallbacks = [];
+    if (source === 'ytmsearch') fallbacks.push('ytsearch', 'scsearch');
+    else if (source === 'ytsearch') fallbacks.push('scsearch');
+    else if (source !== 'scsearch') fallbacks.push('scsearch');
+
+    for (const fb of fallbacks) {
+      logger.info(`Search kosong untuk [${source}], mencoba fallback [${fb}]...`);
       try {
-        result = await player.search({ query, source: 'scsearch' }, requester);
+        result = await player.search({ query, source: fb }, requester);
+        if (result?.tracks?.length) {
+          logger.debug(`Fallback [${fb}] berhasil: ${result.tracks.length} hasil`);
+          break;
+        }
       } catch (fallbackErr) {
-        logger.error(`Fallback scsearch juga gagal: ${fallbackErr.message}`);
-        throw new Error('Tidak ada hasil yang ditemukan. Coba query yang berbeda.');
+        logger.warn(`Fallback [${fb}] gagal: ${fallbackErr.message}`);
       }
+    }
+
+    if (!result || result.loadType === 'empty' || !result.tracks?.length) {
+      throw new Error('Tidak ada hasil yang ditemukan. Coba nama lagu yang berbeda.');
     }
   }
 
