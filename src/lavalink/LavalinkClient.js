@@ -85,6 +85,7 @@ function createLavalinkManager(client) {
       manager.nodeManager.on('error', (node, error) => {
         const msg = error?.message || (typeof error === 'string' ? error : 'unknown error');
         logger.error(`Lavalink NodeManager raw error [${node?.id || 'unknown'}]: ${msg}`);
+        handleNodeFailure(node?.id || 'unknown').catch(() => {});
       });
     }
   } catch (e) {
