@@ -44,7 +44,7 @@ lavalink:
   server:
     password: "Ariekonur0"
     sources:
-      youtube: false
+      youtube: true
       bandcamp: true
       soundcloud: true
       twitch: true
