@@ -25,11 +25,10 @@ plugins:
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
     clients:
-      - MUSIC
-      - ANDROID_TESTSUITE
-      - WEB
-      - WEBEMBEDDED
-      - TVHTML5EMBEDDED
+      - MUSIC       # opus 251kbps, kualitas tertinggi
+      - WEB         # aac 128kbps, stabil
+      - ANDROID     # konsisten, fallback bagus
+      - IOS         # konsisten, kualitas baik
 
 lavalink:
   plugins:
