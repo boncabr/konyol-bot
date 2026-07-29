@@ -3,12 +3,6 @@ const config = require('../config/config');
 const logger = require('../utils/logger');
 const { handleNodeFailure, resetNodeFailCount } = require('../utils/lavalinkRecovery');
 
-/**
- * Apply TLS settings per-node:
- * - secure: false  → plain WebSocket (ws://), no TLS involved
- * - secure: true, selfSigned: false → wss:// dengan CA-verified cert (aman)
- * - secure: true, selfSigned: true  → wss:// dengan self-signed cert
- */
 function applyTlsSettings(nodes) {
   const selfSignedNodes = nodes.filter((n) => n.secure && n.selfSigned);
   const plainNodes = nodes.filter((n) => !n.secure);
@@ -67,7 +61,8 @@ function createLavalinkManager(client) {
       username: 'MusicBot',
     },
     playerOptions: {
-      applyVolumeAsFilter: false,
+      applyVolumeAsFilter: true,
+      instaUpdateFiltersFix: true,
       clientBasedPositionUpdateInterval: 100,
       defaultSearchPlatform: config.music.searchPlatform,
       volumeDecrementer: 1.0,

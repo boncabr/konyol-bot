@@ -49,17 +49,18 @@ lavalink:
       local: false
     filters:
       volume: true
-      equalizer: false
-      karaoke: false
-      timescale: false
-      tremolo: false
-      vibrato: false
+      equalizer: true
+      karaoke: true
+      timescale: true
+      tremolo: true
+      vibrato: true
       distortion: false
-      rotation: false
-      channelMix: false
-      lowPass: false
-    bufferDurationMs: 400
-    frameBufferDurationMs: 5000
+      rotation: true
+      channelMix: true
+      lowPass: true
+    # Increase buffers for more stable output (uses more RAM)
+    bufferDurationMs: 1000
+    frameBufferDurationMs: 10000
     opusEncodingQuality: 10
     resamplingQuality: HIGH
     trackStuckThresholdMs: 10000
