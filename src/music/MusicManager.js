@@ -206,7 +206,7 @@ function getCachedTracks(guildId) { return musicCacheMap.get(guildId) || []; }
 
 // ─── Autoplay Handler ─────────────────────────────────────────────────────────
 
-const AUTOPLAY_BATCH = 5; // berapa lagu yang ditambahkan setiap kali autoplay
+// Autoplay: tidak ada batas batch — semua lagu dari playlist/mix ditambahkan
 
 async function handleAutoplay(client, player) {
   if (!getAutoplay(player.guildId)) return;
@@ -240,8 +240,7 @@ async function handleAutoplay(client, player) {
       const result = await player.search({ query: mixUrl }, requester);
       if (result?.loadType === 'playlist' && result.tracks?.length > 0) {
         tracksToAdd = result.tracks
-          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri))
-          .slice(0, AUTOPLAY_BATCH);
+          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri));
         if (tracksToAdd.length > 0) {
           logger.debug(
             `Autoplay: YouTube Mix OK — ${tracksToAdd.length} lagu dari seed "${seed.title}" [${guildId(player)}]`
@@ -260,8 +259,7 @@ async function handleAutoplay(client, player) {
       const result = await player.search({ query: mixSearchQuery, source: 'ytsearch' }, requester);
       if (result?.loadType === 'playlist' && result.tracks?.length > 0) {
         tracksToAdd = result.tracks
-          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri))
-          .slice(0, AUTOPLAY_BATCH);
+          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri));
       }
     } catch (err) {
       logger.warn(`Autoplay mix search gagal: ${err.message}`);
