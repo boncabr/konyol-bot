@@ -8,13 +8,30 @@ module.exports = {
 
   lavalink: {
     nodes: [
+      // Primary node — override via Railway env vars
       {
         id: 'primary',
-        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
+        host: process.env.LAVALINK_HOST || 'lava-v4.ajieblogs.eu.org',
         port: parseInt(process.env.LAVALINK_PORT || '443'),
         password: process.env.LAVALINK_PASSWORD || 'https://dsc.gg/ajidevserver',
         secure: process.env.LAVALINK_SECURE !== 'false',
       },
+      // Fallback node 1 — Jirayu v4 (global, non-SSL)
+      ...(process.env.LAVALINK_HOST ? [] : [{
+        id: 'fallback1',
+        host: 'lavalink.jirayu.net',
+        port: 13592,
+        password: 'youshallnotpass',
+        secure: false,
+      }]),
+      // Fallback node 2 — HeavenCloud (global, non-SSL)
+      ...(process.env.LAVALINK_HOST ? [] : [{
+        id: 'fallback2',
+        host: '89.106.84.59',
+        port: 4000,
+        password: 'heavencloud.in',
+        secure: false,
+      }]),
     ],
   },
 
