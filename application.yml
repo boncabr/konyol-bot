@@ -67,9 +67,9 @@ lavalink:
       lowPass: false
     # ── v4.0.8: Non-allocating frame buffers (hemat memori server) ──
     nonAllocating: true
-    bufferDurationMs: 200
-    frameBufferDurationMs: 2000
-    opusEncodingQuality: 10
+    bufferDurationMs: 400
+    frameBufferDurationMs: 5000
+    opusEncodingQuality: 0
     resamplingQuality: HIGH
     trackStuckThresholdMs: 5000
     # ── v4.0.8: Seek ghosting untuk seek yang lebih mulus ──
