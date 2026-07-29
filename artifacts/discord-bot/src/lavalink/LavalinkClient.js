@@ -9,6 +9,8 @@ function buildNodes() {
     port: n.port,
     id: n.id,
     secure: n.secure,
+    version: 'v4',
+    useVersionPath: true,
     retryAmount: 50,
     retryDelay: 5000,
     closeOnError: false,
