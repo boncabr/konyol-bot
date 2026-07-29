@@ -55,6 +55,19 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
 
   if (!player.connected) {
     await player.connect();
+
+    // Set bitrate ke maksimum yang diizinkan guild (capped 384kbps)
+    try {
+      const guild = client.guilds.cache.get(guildId);
+      const vc = guild?.channels.cache.get(voiceChannelId);
+      if (vc && vc.manageable) {
+        const targetBitrate = Math.min(config.music.voiceChannelBitrate, guild.maximumBitrate);
+        await vc.setBitrate(targetBitrate);
+        logger.debug('[Bitrate] Set ' + vc.name + ' → ' + (targetBitrate / 1000) + 'kbps');
+      }
+    } catch (e) {
+      logger.debug('[Bitrate] Gagal set bitrate: ' + e.message);
+    }
   }
 
   return player;
