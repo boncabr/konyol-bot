@@ -3,7 +3,7 @@ const { registerSlashCommands } = require('../handlers/commandHandler');
 const logger = require('../utils/logger');
 
 module.exports = {
-  name: 'clientReady',
+  name: 'ready',
   once: true,
   async execute(client) {
     logger.info(`Logged in as ${client.user.tag}`);

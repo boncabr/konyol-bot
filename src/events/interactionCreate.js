@@ -8,8 +8,21 @@ const logger = require('../utils/logger');
 module.exports = {
   name: 'interactionCreate',
   async execute(client, interaction) {
-    // ── Slash commands ───────────────────────────────────────────────────────
-    if (!interaction.isChatInputCommand()) return;
+    // ── Abaikan interaksi selain slash command ───────────────────────────────
+    if (!interaction.isChatInputCommand()) {
+      // Tangani autocomplete agar tidak menampilkan error di Discord
+      if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (command?.autocomplete) {
+          try {
+            await command.autocomplete(client, interaction);
+          } catch (err) {
+            logger.error(`Autocomplete error [${interaction.commandName}]: ${err.message}`);
+          }
+        }
+      }
+      return;
+    }
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
