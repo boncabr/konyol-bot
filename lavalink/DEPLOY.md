@@ -14,22 +14,23 @@
 | Key | Value |
 |---|---|
 | `LAVALINK_PASSWORD` | password bebas, contoh: `KonyolBot2024` |
+| `PORT` | `2333` |
 
-### Step 3 — Dapatkan internal URL Lavalink
+### Step 3 — Aktifkan public domain Lavalink
 
 Setelah deploy berhasil:
-- Klik **Settings** → **Networking** → **Private Network**
-- Catat URL-nya, format: `<nama-service>.railway.internal`
+- Klik **Settings** → **Networking** → **Public Networking** → **Generate Domain**
+- Catat domain-nya, contoh: `konyol-lavalink.up.railway.app`
 
 ### Step 4 — Update variable di service bot (konyol-bot)
 
 | Key | Value baru |
 |---|---|
-| `LAVALINK_HOST` | `<nama-service>.railway.internal` |
-| `LAVALINK_PORT` | `2333` |
+| `LAVALINK_HOST` | `konyol-lavalink.up.railway.app` _(domain dari Step 3)_ |
+| `LAVALINK_PORT` | `443` |
 | `LAVALINK_PASSWORD` | password yang diset di Step 2 |
-| `LAVALINK_SECURE` | `false` |
-| `LAVALINK_HOST_2` | _(opsional, bisa dikosongkan atau pakai public node sebagai fallback)_ |
+| `LAVALINK_SECURE` | `true` |
+| `LAVALINK_HOST_2` | _(opsional, public node sebagai fallback)_ |
 
 ### Step 5 — Restart bot
 
@@ -39,17 +40,17 @@ Setelah semua variable diupdate, restart service bot agar reconnect ke Lavalink 
 
 ## Catatan
 
+- Railway hanya expose port **443 (HTTPS)** — bot harus connect dengan `LAVALINK_PORT=443` dan `LAVALINK_SECURE=true`
 - **First boot** Lavalink lambat (~2–3 menit) karena download plugin dari Maven
 - Lavalink butuh minimal **512MB RAM**
-- Koneksi antar service Railway menggunakan **Private Network** (internal), tidak perlu SSL (`LAVALINK_SECURE=false`)
-- Password Lavalink sudah dikonfigurasi via env var `LAVALINK_PASSWORD` di `application.yml`
+- Password dikonfigurasi via env var `LAVALINK_PASSWORD` di `application.yml`
 
 ## Struktur file
 
 ```
 lavalink/
-├── Dockerfile          # Build image dari ghcr.io/lavalink-devs/lavalink:4
-├── application.yml     # Konfigurasi server Lavalink + plugin
+├── Dockerfile          # Build dari ghcr.io/lavalink-devs/lavalink:4
+├── application.yml     # Konfigurasi server + plugin (port dari $PORT)
 ├── railway.toml        # Konfigurasi build & deploy Railway
 └── DEPLOY.md           # Panduan ini
 ```
