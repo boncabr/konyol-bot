@@ -83,7 +83,7 @@ lavalink:
     nonAllocating: true
     bufferDurationMs: 400
     frameBufferDurationMs: 5000
-    opusEncodingQuality: 0
+    opusEncodingQuality: 8
     resamplingQuality: HIGH
     trackStuckThresholdMs: 5000
     # ── v4.0.8: Seek ghosting untuk seek yang lebih mulus ──
