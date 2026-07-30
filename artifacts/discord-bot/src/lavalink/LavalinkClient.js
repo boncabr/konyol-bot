@@ -86,6 +86,35 @@ function createLavalinkManager(client) {
     logger.warn(`🗑️  Lavalink node [${node.id}] destroyed: ${destroyReason || 'unknown'}`);
   });
 
+  // ── SponsorBlock Events ────────────────────────────────────────────────────
+  // Event ini dikirim oleh Lavalink server (plugin SponsorBlock v3.x)
+  // saat segmen sponsor/intro/outro di-skip otomatis.
+
+  manager.on('SegmentsLoaded', (player, track, segments) => {
+    if (!segments || segments.length === 0) return;
+    const names = segments.map((s) => s.category).join(', ');
+    logger.debug(`[SponsorBlock] Segmen dimuat untuk "${track?.info?.title}": ${names}`);
+  });
+
+  manager.on('SegmentSkipped', (player, track, segment) => {
+    const category = segment?.category || 'unknown';
+    const start = segment?.start != null ? Math.floor(segment.start / 1000) : '?';
+    const end = segment?.end != null ? Math.floor(segment.end / 1000) : '?';
+    logger.info(
+      `[SponsorBlock] Segmen di-skip: [${category}] ${start}s → ${end}s ` +
+      `di "${track?.info?.title || 'unknown'}"`
+    );
+  });
+
+  manager.on('ChaptersLoaded', (player, track, chapters) => {
+    if (!chapters || chapters.length === 0) return;
+    logger.debug(`[SponsorBlock] ${chapters.length} chapter dimuat untuk "${track?.info?.title}"`);
+  });
+
+  manager.on('ChapterStarted', (player, track, chapter) => {
+    logger.debug(`[SponsorBlock] Chapter dimulai: "${chapter?.name || 'unknown'}" di "${track?.info?.title}"`);
+  });
+
   return manager;
 }
 
