@@ -39,7 +39,7 @@ lavalink:
   server:
     password: "${LAVALINK_PASSWORD:changeme}"
     sources:
-      youtube: false
+      youtube: true
       bandcamp: true
       soundcloud: true
       twitch: true
