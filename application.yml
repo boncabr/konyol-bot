@@ -85,7 +85,7 @@ lavalink:
     frameBufferDurationMs: 5000
     opusEncodingQuality: 8
     resamplingQuality: HIGH
-    trackStuckThresholdMs: 5000
+    trackStuckThresholdMs: 10000
     # ── v4.0.8: Seek ghosting untuk seek yang lebih mulus ──
     useSeekGhosting: true
     youtubePlaylistLoadLimit: 6
