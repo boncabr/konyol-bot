@@ -79,7 +79,7 @@ lavalink:
       lowPass: false
     # ── v4.0.8: Non-allocating frame buffers (hemat memori server) ──
     nonAllocating: true
-    bufferDurationMs: 400
+    bufferDurationMs: 200
     frameBufferDurationMs: 5000
     opusEncodingQuality: 10
     resamplingQuality: HIGH
