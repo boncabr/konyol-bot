@@ -2,7 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed, createEmbed } = require('../../utils/embeds');
 const config = require('../../config/config');
 
-// ─── Definisi Filter ─────────────────────────────────────────────────────────
+// ─── Definisi Filter ────────────────────────────────────────────────────────[...] 
 
 const FILTERS = {
   off: {
@@ -16,43 +16,43 @@ const FILTERS = {
   bassboost: {
     label: 'Bass Boost',
     emoji: '🔊',
-    description: 'Perkuat suara bass',
+    description: 'Perkuat suara bass (konservatif)',
     apply: async (player) => {
       await player.filterManager.resetFilters();
       await player.filterManager.setEqualizer([
-        { band: 0, gain: 0.3 },
-        { band: 1, gain: 0.3 },
-        { band: 2, gain: 0.25 },
-        { band: 3, gain: 0.2 },
-        { band: 4, gain: 0.15 },
+        { band: 0, gain: 0.15 },
+        { band: 1, gain: 0.15 },
+        { band: 2, gain: 0.12 },
+        { band: 3, gain: 0.10 },
+        { band: 4, gain: 0.08 },
         { band: 5, gain: 0.0 },
-        { band: 6, gain: -0.05 },
-        { band: 7, gain: -0.05 },
-        { band: 8, gain: -0.05 },
-        { band: 9, gain: -0.05 },
-        { band: 10, gain: -0.05 },
-        { band: 11, gain: -0.05 },
-        { band: 12, gain: -0.05 },
-        { band: 13, gain: -0.05 },
+        { band: 6, gain: -0.03 },
+        { band: 7, gain: -0.03 },
+        { band: 8, gain: -0.03 },
+        { band: 9, gain: -0.03 },
+        { band: 10, gain: -0.03 },
+        { band: 11, gain: -0.03 },
+        { band: 12, gain: -0.03 },
+        { band: 13, gain: -0.03 },
       ]);
     },
   },
   nightcore: {
     label: 'Nightcore',
     emoji: '🌙',
-    description: 'Percepat lagu dan naikkan pitch (efek Nightcore)',
+    description: 'Percepat lagu dan naikkan pitch (efek Nightcore, ringan)',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setTimescale({ speed: 1.3, pitch: 1.3, rate: 1.0 });
+      await player.filterManager.setTimescale({ speed: 1.15, pitch: 1.1, rate: 1.0 });
     },
   },
   slowmode: {
     label: 'Slow Mode',
     emoji: '🐢',
-    description: 'Perlambat lagu (efek lo-fi / vaporwave)',
+    description: 'Perlambat lagu (efek lo-fi / vaporwave, ringan)',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setTimescale({ speed: 0.8, pitch: 0.9, rate: 1.0 });
+      await player.filterManager.setTimescale({ speed: 0.88, pitch: 0.92, rate: 1.0 });
     },
   },
   '8d': {
@@ -67,28 +67,28 @@ const FILTERS = {
   karaoke: {
     label: 'Karaoke',
     emoji: '🎤',
-    description: 'Kurangi vokal, fokus ke instrumen',
+    description: 'Kurangi vokal, fokus ke instrumen (ringan)',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setKaraoke({ level: 1.0, monoLevel: 1.0, filterBand: 220.0, filterWidth: 100.0 });
+      await player.filterManager.setKaraoke({ level: 0.8, monoLevel: 0.8, filterBand: 220.0, filterWidth: 80.0 });
     },
   },
   tremolo: {
     label: 'Tremolo',
     emoji: '〰️',
-    description: 'Efek getaran volume',
+    description: 'Efek getaran volume (ringan)',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setTremolo({ frequency: 4.0, depth: 0.75 });
+      await player.filterManager.setTremolo({ frequency: 4.0, depth: 0.45 });
     },
   },
   vibrato: {
     label: 'Vibrato',
     emoji: '🎻',
-    description: 'Efek getaran pitch',
+    description: 'Efek getaran pitch (ringan)',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setVibrato({ frequency: 4.0, depth: 0.75 });
+      await player.filterManager.setVibrato({ frequency: 4.0, depth: 0.45 });
     },
   },
   pop: {
@@ -117,12 +117,12 @@ const FILTERS = {
     description: 'Kurangi frekuensi tinggi, suara lebih lembut',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setLowPass({ smoothing: 20.0 });
+      await player.filterManager.setLowPass({ smoothing: 18.0 });
     },
   },
 };
 
-// ─── Handler ──────────────────────────────────────────────────────────────────
+// ─── Handler ──────────────────────────────────────────────────────────[...] 
 
 async function handleFilter(client, ctx, args) {
   const isInteraction = ctx.isChatInputCommand?.();

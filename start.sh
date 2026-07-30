@@ -36,4 +36,4 @@ if [ $i -eq $MAX_WAIT ]; then
 fi
 
 echo "🎵 Memulai Discord Music Bot..."
-exec node --dns-result-order=ipv4first src/index.js
+exec node $NODE_OPTIONS --dns-result-order=ipv4first src/index.js
