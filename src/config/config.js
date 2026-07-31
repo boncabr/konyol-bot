@@ -14,7 +14,7 @@ module.exports = {
         port: parseInt(process.env.LAVALINK_PORT || '443'),
         password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
         secure: process.env.LAVALINK_SECURE
-          ? process.env.LAVALINK_SECURE === 'true'
+          ? process.env.LAVALINK_SECURE === 'false'
           : parseInt(process.env.LAVALINK_PORT || '443') === 443,
         selfSigned: process.env.LAVALINK_SELF_SIGNED === 'true',
         retryAmount: 15,
@@ -26,7 +26,7 @@ module.exports = {
         port: parseInt(process.env.LAVALINK_PORT_2 || '443'),
         password: process.env.LAVALINK_PASSWORD_2 || 'https://dsc.gg/srnti',
         secure: process.env.LAVALINK_SECURE_2
-          ? process.env.LAVALINK_SECURE_2 === 'true'
+          ? process.env.LAVALINK_SECURE_2 === 'false'
           : parseInt(process.env.LAVALINK_PORT_2 || '443') === 443,
         selfSigned: false,
         retryAmount: 15,
