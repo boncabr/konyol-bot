@@ -42,7 +42,7 @@ module.exports = {
   },
 
   music: {
-    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '80'),
+    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '100'),
     maxQueueSize: 500,
     maxDuration: parseInt(process.env.MAX_DURATION || '7200000'),
     searchPlatform: 'ytsearch',

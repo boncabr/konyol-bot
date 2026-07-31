@@ -1,43 +1,15 @@
 server:
-  port: ${PORT:2333}
+  port: 2333
   address: 0.0.0.0
-spring:
-  application:
-    name: lavalink
-
-plugins:
-  lavasrc:
-    providers:
-      - 'ytsearch:"%ISRC%"'
-      - 'ytmsearch:"%ISRC%"'
-      - "ytsearch:%QUERY%"
-      - "ytmsearch:%QUERY%"
-      - "scsearch:%QUERY%"
-    sources:
-      spotify: false
-      applemusic: false
-      deezer: false
-      yandexmusic: false
-      youtube: true
-  youtube:
-    enabled: true
-    allowSearch: true
-    allowDirectVideoIds: true
-    allowDirectPlaylistIds: true
-    clients:
-      - MUSIC       # opus 251kbps, kualitas tertinggi
-      - WEB         # aac 128kbps, stabil
-      - ANDROID     # konsisten, fallback bagus
-      - IOS         # konsisten, kualitas baik
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-      snapshot: false
-    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.4.1"
-      snapshot: false
+    # Plugin SponsorBlock (opsional — skip intro/sponsor otomatis)
+    # - dependency: "dev.lavalink.youtube:youtube-plugin:1.11.3"
+    #   snapshot: false
+
   server:
-    password: "${LAVALINK_PASSWORD:changeme}"
+    password: "youshallnotpass"
     sources:
       youtube: true
       bandcamp: true
@@ -46,42 +18,53 @@ lavalink:
       vimeo: true
       http: true
       local: false
+
+    # ─── Kualitas Audio ───────────────────────────────────────────────────────
+    # ffmpeg digunakan saat ada filter aktif atau volume != 100.
+    # Dengan volume=100 dan tanpa filter, Lavalink meneruskan stream Opus
+    # langsung dari YouTube tanpa decode-encode ulang (passthrough).
     filters:
       volume: true
-      equalizer: false
-      karaoke: false
-      timescale: false
-      tremolo: false
-      vibrato: false
-      distortion: false
-      rotation: false
-      channelMix: false
-      lowPass: false
-    bufferDurationMs: 200
+      equalizer: true
+      karaoke: true
+      timescale: true
+      tremolo: true
+      vibrato: true
+      distortion: true
+      rotation: true
+      channelMix: true
+      lowPass: true
+
+    # Buffer 400ms untuk meminimalkan dropout saat jaringan fluktuatif
+    bufferDurationMs: 400
+
+    # Frame buffer: 5000ms — cukup untuk latensi tinggi
     frameBufferDurationMs: 5000
+
+    # Opus encoding quality (0=terburuk, 10=terbaik)
     opusEncodingQuality: 10
+
+    # Resampling quality saat sumber bukan 48kHz
     resamplingQuality: HIGH
+
+    # Jumlah thread untuk encoding (0 = auto)
     trackStuckThresholdMs: 10000
-    useSeekGhosting: true
+
+    # Nonaktifkan GC warnings
     youtubePlaylistLoadLimit: 6
     playerUpdateInterval: 5
     youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
-    gc-warnings: true
-
-metrics:
-  prometheus:
-    enabled: false
-
-sentry:
-  dsn: ""
+    gc-warnings: false
 
 logging:
   file:
     path: ./logs/
+
   level:
     root: INFO
     lavalink: INFO
+
   request:
     enabled: true
     includeClientInfo: true
@@ -89,3 +72,16 @@ logging:
     includeQueryString: true
     includePayload: true
     maxPayloadLength: 10000
+
+metrics:
+  prometheus:
+    enabled: false
+    endpoint: /metrics
+
+sentry:
+  dsn: ""
+
+spring:
+  mvc:
+    async:
+      request-timeout: 100s

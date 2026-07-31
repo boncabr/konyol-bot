@@ -21,19 +21,23 @@ async function handleVolume(client, ctx, args) {
   const volumeInput = isInteraction ? ctx.options.getInteger('level') : parseInt(args?.[0]);
 
   if (isNaN(volumeInput)) {
-    const embed = errorEmbed(`Current volume: **${player.volume}%**\nUse \`?volume <1-150>\` to change it.`);
+    const qualityNote = player.volume === 100
+      ? '✅ Kualitas optimal (volume 100%)'
+      : '⚠️ Volume < 100% menurunkan kualitas audio sedikit';
+    const embed = errorEmbed(`Volume sekarang: **${player.volume}%**\n${qualityNote}\nGunakan \`?volume <1-100>\` untuk mengubahnya.`);
     return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
   }
 
-  if (volumeInput < 1 || volumeInput > 150) {
-    const embed = errorEmbed('Volume must be between **1** and **150**.');
+  if (volumeInput < 1 || volumeInput > 100) {
+    const embed = errorEmbed('Volume harus antara **1** dan **100**.\n> Volume 100% = kualitas audio terbaik (tidak ada re-encoding).');
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
   }
 
   await player.setVolume(volumeInput);
 
-  const emoji = volumeInput === 0 ? '🔇' : volumeInput < 50 ? '🔈' : volumeInput < 100 ? '🔉' : '🔊';
-  const embed = successEmbed(`Volume set to **${volumeInput}%** ${emoji}`, '🔊 Volume');
+  const emoji = volumeInput < 30 ? '🔈' : volumeInput < 70 ? '🔉' : '🔊';
+  const qualityLine = volumeInput === 100 ? '\n✅ Kualitas audio optimal.' : '';
+  const embed = successEmbed(`Volume diset ke **${volumeInput}%** ${emoji}${qualityLine}`, '🔊 Volume');
   return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
 }
 
@@ -45,7 +49,7 @@ module.exports = {
     .setName('volume')
     .setDescription('Set the playback volume')
     .addIntegerOption((opt) =>
-      opt.setName('level').setDescription('Volume level (1-150)').setMinValue(1).setMaxValue(150)
+      opt.setName('level').setDescription('Volume level (1-100) — 100% = kualitas terbaik').setMinValue(1).setMaxValue(100)
     ),
   async execute(client, ctx, args) {
     await handleVolume(client, ctx, args);

@@ -167,9 +167,11 @@ async function handleFilter(client, ctx, args) {
   }
 
   const embed = filterKey === 'off'
-    ? successEmbed('Semua filter audio dimatikan.', '❌ Filter Off')
+    ? successEmbed('Semua filter audio dimatikan.\n✅ Kualitas audio kembali optimal (passthrough aktif).', '❌ Filter Off')
     : successEmbed(
-        `Filter **${filter.label}** ${filter.emoji} diaktifkan.\nGunakan \`?filter off\` atau \`/filter off\` untuk mematikan.`,
+        `Filter **${filter.label}** ${filter.emoji} diaktifkan.\n` +
+        `⚠️ Filter aktif menyebabkan audio di-encode ulang — kualitas sedikit turun.\n` +
+        `Gunakan \`?filter off\` atau \`/filter off\` untuk mematikan.`,
         `${filter.emoji} Filter: ${filter.label}`
       );
 
