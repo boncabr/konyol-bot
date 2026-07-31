@@ -1,3 +1,4 @@
+const { DEFAULT_EQ } = require('../../music/MusicManager');
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed, createEmbed } = require('../../utils/embeds');
 const config = require('../../config/config');
@@ -11,6 +12,7 @@ const FILTERS = {
     description: 'Matikan semua filter audio',
     apply: async (player) => {
       await player.filterManager.resetFilters();
+      await player.filterManager.setEqualizer(DEFAULT_EQ);
     },
   },
   bassboost: {

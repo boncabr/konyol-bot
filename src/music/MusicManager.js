@@ -1,6 +1,38 @@
 const logger = require('../utils/logger');
 const config = require('../config/config');
 
+// ─── Default EQ: Bass Nendang Smooth ─────────────────────────────────────────
+// Terapkan otomatis saat bot join voice channel.
+// Untuk mematikan: ?filter off (kembali ke EQ ini, bukan kosong)
+// Untuk menghapus fitur ini: lihat docs/PANDUAN-EQ.md
+const DEFAULT_EQ = [
+  { band: 0,  gain:  0.08  }, // 25Hz   — sub rumble halus
+  { band: 1,  gain:  0.13  }, // 40Hz   — sub-bass
+  { band: 2,  gain:  0.22  }, // 63Hz   — NENDANG: body kick drum
+  { band: 3,  gain:  0.22  }, // 100Hz  — NENDANG: bass guitar fundamental
+  { band: 4,  gain:  0.12  }, // 160Hz  — upper bass, transisi mulus
+  { band: 5,  gain:  0.03  }, // 250Hz  — sedikit saja, jangan muddy
+  { band: 6,  gain: -0.04  }, // 400Hz  — potong boxy
+  { band: 7,  gain: -0.05  }, // 630Hz  — potong zona lumpur
+  { band: 8,  gain: -0.04  }, // 1kHz   — smooth
+  { band: 9,  gain:  0.00  }, // 1.6kHz — netral
+  { band: 10, gain:  0.03  }, // 2.5kHz — vokal sedikit lebih hadir
+  { band: 11, gain:  0.05  }, // 4kHz   — detail instrumen
+  { band: 12, gain:  0.05  }, // 6.3kHz — udara, balance treble
+  { band: 13, gain:  0.04  }, // 10kHz  — sedikit airy
+  { band: 14, gain:  0.00  }, // 16kHz  — netral
+];
+
+async function applyDefaultEQ(player) {
+  try {
+    await player.filterManager.setEqualizer(DEFAULT_EQ);
+    logger.debug('[EQ] Default bass-smooth EQ diterapkan.');
+  } catch (e) {
+    logger.warn('[EQ] Gagal terapkan default EQ: ' + e.message);
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const autoplayMap = new Map();
 const musicCacheMap = new Map();
 const radioModeMap = new Map();
@@ -27,6 +59,8 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       'Coba lagi dalam beberapa detik.'
     );
   }
+
+  const isNewPlayer = !client.lavalink.getPlayer(guildId);
 
   let player = client.lavalink.getPlayer(guildId);
 
@@ -67,6 +101,10 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       }
     } catch (e) {
       logger.debug('[Bitrate] Gagal set bitrate: ' + e.message);
+    }
+
+    if (isNewPlayer) {
+      await applyDefaultEQ(player);
     }
   }
 
@@ -328,6 +366,7 @@ function cleanTitle(title) {
   return t || title;
 }
 module.exports = {
+  DEFAULT_EQ,
   setRadioMode,
   setRadioStation,
   getRadioStation,
