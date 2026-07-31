@@ -13,9 +13,7 @@ module.exports = {
         host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
         port: parseInt(process.env.LAVALINK_PORT || '443'),
         password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
-        secure: process.env.LAVALINK_SECURE
-          ? process.env.LAVALINK_SECURE === 'true'
-          : parseInt(process.env.LAVALINK_PORT || '443') === 443,
+        secure: process.env.LAVALINK_SECURE === 'true',
         selfSigned: process.env.LAVALINK_SELF_SIGNED === 'true',
         retryAmount: 15,
         retryDelay: 5000,
@@ -25,9 +23,7 @@ module.exports = {
         host: process.env.LAVALINK_HOST_2 || 'lavalink.serenetia.com',
         port: parseInt(process.env.LAVALINK_PORT_2 || '443'),
         password: process.env.LAVALINK_PASSWORD_2 || 'https://dsc.gg/srnti',
-        secure: process.env.LAVALINK_SECURE_2
-          ? process.env.LAVALINK_SECURE_2 === 'true'
-          : parseInt(process.env.LAVALINK_PORT_2 || '443') === 443,
+        secure: process.env.LAVALINK_SECURE_2 === 'true',
         selfSigned: false,
         retryAmount: 15,
         retryDelay: 5000,
