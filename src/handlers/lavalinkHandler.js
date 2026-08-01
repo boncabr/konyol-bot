@@ -97,7 +97,8 @@ async function loadLavalinkEvents(client) {
 
   client.lavalink.on('trackEnd', async (player, track) => {
     try {
-      if (player.queue.tracks.length === 0) {
+      // Jangan hapus voice status jika autoplay aktif — queueEnd yang akan menanganinya
+      if (player.queue.tracks.length === 0 && !getAutoplay(player.guildId)) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
       }
       logger.debug(`Track ended: "${track.info.title}" in guild ${player.guildId}`);
@@ -131,13 +132,13 @@ async function loadLavalinkEvents(client) {
         }
       };
 
-      // ── Track panjang (> 20 menit) — langsung lewati tanpa retry ─────────────
-      if (duration > 20 * 60 * 1000) {
+      // ── Track panjang (> 5 jam) — langsung lewati tanpa retry ─────────────
+      if (duration > 5 * 60 * 60 * 1000) {
         logger.warn(`Long track stuck (${Math.round(duration / 60000)}min) — skipping without retry`);
         stuckRetryMap.delete(retryKey);
         if (textChannel) {
           await textChannel.send({
-            content: `⏭️ **${title}** dilewati (koneksi stream terputus).`
+            content: `⏭️ **${title}** dilewati (stream terputus).`
           }).catch(() => {});
         }
         await forceAdvance();
@@ -186,7 +187,7 @@ async function loadLavalinkEvents(client) {
 
           if (freshResult?.tracks?.length) {
             await player.queue.add(freshResult.tracks[0], 0);
-            await forceAdvance();
+            await player.skip();
             if (textChannel) {
               await textChannel.send({
                 content: `🔄 **${title}** mengalami gangguan, mencoba dari sumber lain...`
