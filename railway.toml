@@ -8,3 +8,18 @@ startCommand = "node --dns-result-order=ipv4first src/index.js"
 numReplicas = 1
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
+
+# ─── Auto-Deploy Configuration ────────────────────────────────────────────────
+# Railway akan otomatis trigger build & deploy saat ada perubahan di:
+# - src/ (source code)
+# - package.json (dependencies)
+# - railway.toml (konfigurasi ini)
+# Trigger diasetup via GitHub webhook otomatis saat repo ter-connect di Railway.
+
+[start]
+cmd = "node --dns-result-order=ipv4first src/index.js"
+
+[watch]
+# Auto-rebuild saat ada perubahan file (development mode)
+# Disabled di production — gunakan manual deploy via GitHub push
+paths = ["src/", "package.json"]
