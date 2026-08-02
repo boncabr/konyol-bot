@@ -7,3 +7,16 @@ buildContext = "."
 numReplicas = 1
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
+startCommand = "java -Xmx512m -Xms512m -jar Lavalink.jar"
+
+# ─── Auto-Deploy Configuration ────────────────────────────────────────────────
+# Railway akan otomatis trigger build & deploy saat ada perubahan di:
+# - lavalink/ (Lavalink server code & config)
+# - lavalink/application.yml (stereo audio configuration)
+# - lavalink/Dockerfile
+# Trigger diasetup via GitHub webhook otomatis saat repo ter-connect di Railway.
+
+[watch]
+# Auto-rebuild saat ada perubahan di Lavalink folder
+# Includes: application.yml (audio settings), Dockerfile
+paths = ["lavalink/", "*.yml"]
