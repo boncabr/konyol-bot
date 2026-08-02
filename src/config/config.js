@@ -51,6 +51,16 @@ module.exports = {
     voiceChannelBitrate: 384000,
   },
 
+  // ─── Audio Stereo Configuration ───────────────────────────────────────────
+  audio: {
+    sampleRate: 48000,            // 48 kHz — Discord Opus standard (terbaik untuk stereo)
+    channels: 2,                  // Stereo (2 channel)
+    opusEncodingQuality: 10,      // Max quality (0-10, default 10)
+    resamplingQuality: 'HIGH',    // HIGH, MEDIUM, LOW — untuk resampling audio
+    stereoMix: true,              // Enable stereo mixing/channel mix filter
+    stereoDepth: 0.5,             // Stereo effect depth (0.0-1.0)
+  },
+
   cooldowns: {
     default: 3000,
     play: 5000,
