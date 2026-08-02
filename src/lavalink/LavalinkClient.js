@@ -52,6 +52,30 @@ function createLavalinkManager(client) {
     nodes.map((n) => `${n.id} (${n.secure ? 'SSL' : 'no-SSL'}${n.selfSigned ? '/self-signed' : ''})`).join(', ')
   );
 
+  // ─── Stereo Audio Configuration ────────────────────────────────────────────
+  // Use audio config from config.js for optimal stereo playback
+  const audioConfig = config.audio || {};
+  const stereoPlayerOptions = {
+    applyVolumeAsFilter: false,
+    clientBasedPositionUpdateInterval: 100,
+    defaultSearchPlatform: config.music.searchPlatform,
+    volumeDecrementer: 1.0,
+    onDisconnect: {
+      autoReconnect: true,
+      destroyPlayer: false,
+    },
+    onEmptyQueue: {
+      destroyAfterMs: config.music.leaveOnEmptyDelay,
+    },
+    // Stereo-specific settings from config
+    ...(audioConfig.channels === 2 && {
+      stereo: {
+        enabled: true,
+        depth: audioConfig.stereoDepth || 0.5,
+      },
+    }),
+  };
+
   const manager = new LavalinkManager({
     nodes,
     sendToShard: (guildId, payload) => {
@@ -66,23 +90,19 @@ function createLavalinkManager(client) {
       id: config.clientId,
       username: 'MusicBot',
     },
-    playerOptions: {
-      applyVolumeAsFilter: false,
-      clientBasedPositionUpdateInterval: 100,
-      defaultSearchPlatform: config.music.searchPlatform,
-      volumeDecrementer: 1.0,
-      onDisconnect: {
-        autoReconnect: true,
-        destroyPlayer: false,
-      },
-      onEmptyQueue: {
-        destroyAfterMs: config.music.leaveOnEmptyDelay,
-      },
-    },
+    playerOptions: stereoPlayerOptions,
     autoSkip: true,
     autoSkipOnResolveError: true,
     emitNewSongsOnly: true,
   });
+
+  // Log stereo configuration
+  if (audioConfig.channels === 2) {
+    logger.info(
+      `🎧 Stereo Audio Enabled: ${audioConfig.sampleRate}Hz, ${audioConfig.channels}ch, ` +
+      `Opus Quality: ${audioConfig.opusEncodingQuality}/10, Depth: ${audioConfig.stereoDepth}`
+    );
+  }
 
   try {
     if (manager.nodeManager) {
