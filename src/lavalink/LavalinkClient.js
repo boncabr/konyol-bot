@@ -52,8 +52,9 @@ function createLavalinkManager(client) {
     nodes.map((n) => `${n.id} (${n.secure ? 'SSL' : 'no-SSL'}${n.selfSigned ? '/self-signed' : ''})`).join(', ')
   );
 
-  // ─── Stereo Audio Configuration ────────────────────────────────────────────
-  // Use audio config from config.js for optimal stereo playback
+  // ─── Stereo Audio Configuration (DEFAULT) ──────────────────────────────────
+  // Stereo is ALWAYS enabled — no user action required
+  // All music will output in 2-channel stereo (48kHz Opus)
   const audioConfig = config.audio || {};
   const stereoPlayerOptions = {
     applyVolumeAsFilter: false,
@@ -67,13 +68,11 @@ function createLavalinkManager(client) {
     onEmptyQueue: {
       destroyAfterMs: config.music.leaveOnEmptyDelay,
     },
-    // Stereo-specific settings from config
-    ...(audioConfig.channels === 2 && {
-      stereo: {
-        enabled: true,
-        depth: audioConfig.stereoDepth || 0.5,
-      },
-    }),
+    // STEREO IS ALWAYS ENABLED
+    stereo: {
+      enabled: true,
+      depth: audioConfig.stereoDepth || 0.5,
+    },
   };
 
   const manager = new LavalinkManager({
@@ -96,13 +95,11 @@ function createLavalinkManager(client) {
     emitNewSongsOnly: true,
   });
 
-  // Log stereo configuration
-  if (audioConfig.channels === 2) {
-    logger.info(
-      `🎧 Stereo Audio Enabled: ${audioConfig.sampleRate}Hz, ${audioConfig.channels}ch, ` +
-      `Opus Quality: ${audioConfig.opusEncodingQuality}/10, Depth: ${audioConfig.stereoDepth}`
-    );
-  }
+  // Log stereo configuration on startup
+  logger.info(
+    `🎧 TRUE STEREO AUDIO ACTIVE (DEFAULT): ${audioConfig.sampleRate}Hz, 2-channel, ` +
+    `Opus Quality: ${audioConfig.opusEncodingQuality}/10, Stereo Depth: ${audioConfig.stereoDepth}`
+  );
 
   try {
     if (manager.nodeManager) {

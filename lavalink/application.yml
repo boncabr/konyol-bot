@@ -19,23 +19,25 @@ lavalink:
       http: true
       local: false
 
-    # ─── Kualitas Audio Stereo ─────────────────────────────────────────────────
+    # ─── TRUE STEREO AUDIO (DEFAULT) ───────────────────────────────────────────
+    # All music streams output in 2-channel stereo (48kHz Opus codec)
+    # User does NOT need to enable stereo — it is always on
+    # 
     # ffmpeg digunakan saat ada filter aktif atau volume != 100.
     # Dengan volume=100 dan tanpa filter, Lavalink meneruskan stream Opus
     # langsung dari YouTube tanpa decode-encode ulang (passthrough).
-    # Stereo diaktifkan via channelMix filter untuk left-right audio mixing.
     filters:
       volume: true
-      equalizer: true
+      equalizer: true          # ← For bass-smooth EQ on all tracks
       karaoke: true
       timescale: true
       tremolo: true
       vibrato: true
       distortion: true
       rotation: true
-      channelMix: true          # ← Stereo/channel mixing
+      channelMix: true          # ← STEREO: Force 2-channel mixing (ALWAYS ENABLED)
       lowPass: true
-      highPass: true            # ← Optional: untuk clarity
+      highPass: true            # ← For clarity on stereo output
 
     # Buffer 400ms untuk meminimalkan dropout saat jaringan fluktuatif
     bufferDurationMs: 400
@@ -45,7 +47,8 @@ lavalink:
 
     # ─── Opus Encoding (Stereo Optimal) ────────────────────────────────────────
     # Sample rate: 48kHz (Discord standard untuk Opus codec)
-    # Channels: 2 (stereo — left + right)
+    # Channels: 2 (stereo — left + right channel)
+    # Quality: Maximum
     
     # Opus encoding quality (0=terburuk, 10=terbaik)
     opusEncodingQuality: 10

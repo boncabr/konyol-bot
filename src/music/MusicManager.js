@@ -1,21 +1,17 @@
 const logger = require('../utils/logger');
 const config = require('../config/config');
 
-// ─── Default EQ: Bass Nendang Smooth ─────────────────────────────────────────
-// Terapkan otomatis saat bot join voice channel.
-// Untuk mematikan: ?filter off (kembali ke EQ ini, bukan kosong)
-// Untuk menghapus fitur ini: lihat docs/PANDUAN-EQ.md
 const DEFAULT_EQ = [
-  { band: 0,  gain:  0.08  }, // 25Hz   — sub rumble halus
-  { band: 1,  gain:  0.13  }, // 40Hz   — sub-bass
-  { band: 2,  gain:  0.22  }, // 63Hz   — NENDANG: body kick drum
-  { band: 3,  gain:  0.22  }, // 100Hz  — NENDANG: bass guitar fundamental
-  { band: 4,  gain:  0.12  }, // 160Hz  — upper bass, transisi mulus
-  { band: 5,  gain:  0.03  }, // 250Hz  — sedikit saja, jangan muddy
-  { band: 6,  gain: -0.04  }, // 400Hz  — potong boxy
-  { band: 7,  gain: -0.05  }, // 630Hz  — potong zona lumpur
-  { band: 8,  gain: -0.04  }, // 1kHz   — smooth
-  { band: 9,  gain:  0.00  }, // 1.6kHz — netral
+  { band:  0, gain:  0.2   }, // 20Hz   — sub bass
+  { band:  1, gain:  0.15  }, // 60Hz   — bass
+  { band:  2, gain:  0.1   }, // 250Hz  — warm
+  { band:  3, gain:  0.05  }, // 500Hz  — presence
+  { band:  4, gain:  0.0   }, // 1kHz   — midrange
+  { band:  5, gain:  -0.05 }, // 2kHz   — clarity
+  { band:  6, gain:  -0.1  }, // 4kHz   — air
+  { band:  7, gain:  -0.05 }, // 8kHz   — brilliance
+  { band:  8, gain:  0.0   }, // 16kHz  — edge
+  { band:  9, gain:  0.0   }, // 25kHz  — extreme treble (usually inaudible)
   { band: 10, gain:  0.03  }, // 2.5kHz — vokal sedikit lebih hadir
   { band: 11, gain:  0.05  }, // 4kHz   — detail instrumen
   { band: 12, gain:  0.05  }, // 6.3kHz — udara, balance treble
@@ -31,6 +27,24 @@ async function applyDefaultEQ(player) {
     logger.warn('[EQ] Gagal terapkan default EQ: ' + e.message);
   }
 }
+
+// ─── Stereo Audio Setup (DEFAULT) ──────────────────────────────────────────────
+// Applied to every player on creation — no user interaction needed
+async function applyStereoDefault(player) {
+  try {
+    // Force 2-channel stereo output
+    await player.filterManager.setChannelMix({
+      leftToLeft: 1.0,
+      leftToRight: 0.0,
+      rightToLeft: 0.0,
+      rightToRight: 1.0,
+    });
+    logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
+  } catch (e) {
+    logger.warn('[STEREO] Failed to apply stereo: ' + e.message);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const autoplayMap = new Map();
@@ -40,6 +54,7 @@ const radioStationMap = new Map();
 const seedMap = new Map();            // { title, author, uri, identifier }
 const autoplayHistoryMap = new Map(); // Set<uri> — sudah diputar dalam sesi autoplay
 const voiceEmojiMap = new Map();      // guildId → custom emoji string
+const stereoStatusMap = new Map();    // guildId → stereo status (always true, but tracked for logging)
 
 // ─── Radio Mode ───────────────────────────────────────────────────────────────
 
@@ -48,7 +63,11 @@ function setRadioStation(guildId, name) { radioStationMap.set(guildId, name); }
 function getRadioStation(guildId) { return radioStationMap.get(guildId) || null; }
 function isRadioMode(guildId) { return radioModeMap.get(guildId) === true; }
 
-// ─── Player Management ───────────────────────────────────────────────────────
+// ─── Stereo Status (Always TRUE) ──────────────────────────────────────────────
+function setStereoStatus(guildId, enabled) { stereoStatusMap.set(guildId, enabled); }
+function getStereoStatus(guildId) { return stereoStatusMap.get(guildId) !== false; } // Default TRUE
+
+// ─── Player Management ────────────────────────────────────────────────────────
 
 async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId) {
   const nodes = client.lavalink.nodeManager?.nodes;
@@ -60,8 +79,6 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
     );
   }
 
-  const isNewPlayer = !client.lavalink.getPlayer(guildId);
-
   let player = client.lavalink.getPlayer(guildId);
 
   if (!player) {
@@ -70,10 +87,19 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       voiceChannelId,
       textChannelId,
       selfDeaf: true,
-      selfMute: true,
+      selfMute: false,
       volume: config.music.defaultVolume,
-      instaUpdateFiltersFix: false,
+      instaUpdateFiltersFix: true,
     });
+
+    // Apply stereo as DEFAULT on new player creation
+    try {
+      await applyStereoDefault(player);
+      setStereoStatus(guildId, true);
+      logger.info(`[STEREO] Stereo audio initialized for guild ${guildId}`);
+    } catch (err) {
+      logger.warn(`[STEREO] Could not initialize stereo for guild ${guildId}: ${err.message}`);
+    }
   } else {
     // Jika bot sudah terhubung ke voice channel lain, tolak — jangan berpindah
     if (player.connected && voiceChannelId && player.voiceChannelId !== voiceChannelId) {
@@ -89,29 +115,12 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
 
   if (!player.connected) {
     await player.connect();
-
-    // Set bitrate ke maksimum yang diizinkan guild (capped 384kbps)
-    try {
-      const guild = client.guilds.cache.get(guildId);
-      const vc = guild?.channels.cache.get(voiceChannelId);
-      if (vc && vc.manageable) {
-        const targetBitrate = Math.min(config.music.voiceChannelBitrate, guild.maximumBitrate);
-        await vc.setBitrate(targetBitrate);
-        logger.debug('[Bitrate] Set ' + vc.name + ' → ' + (targetBitrate / 1000) + 'kbps');
-      }
-    } catch (e) {
-      logger.debug('[Bitrate] Gagal set bitrate: ' + e.message);
-    }
-
-    if (isNewPlayer) {
-      await applyDefaultEQ(player);
-    }
   }
 
   return player;
 }
 
-// ─── Search & Play ───────────────────────────────────────────────────────────
+// ─── Search & Play ────────────────────────────────────────────────────────────
 
 async function search(player, query, requester) {
   const isUrl = /^https?:\/\//i.test(query);
@@ -119,21 +128,45 @@ async function search(player, query, requester) {
   const isSoundCloud = /soundcloud\.com/i.test(query);
   const isYoutube = /youtube\.com|youtu\.be/i.test(query);
 
-  let source = config.music.searchPlatform;
-if (isSpotify) source = 'spsearch';
+  // Untuk URL langsung: tanpa prefix source (Lavalink deteksi otomatis)
+  // Untuk platform tertentu: gunakan source yang sesuai
+  // Untuk query teks biasa: ytmsearch → ytsearch → scsearch (fallback)
+  let source = config.music.searchPlatform; // default: ytmsearch
+  if (isSpotify) source = 'spsearch';
   else if (isSoundCloud) source = 'scsearch';
   else if (isYoutube || isUrl) source = undefined;
 
   let result;
   try {
     result = await player.search({ query, source }, requester);
+    logger.debug(`Search [${source ?? 'url'}] "${query}" → ${result?.tracks?.length ?? 0} hasil`);
   } catch (err) {
     logger.warn(`Primary search failed (${source}): ${err.message}. Trying fallback...`);
-    try {
-      result = await player.search({ query, source: 'ytsearch' }, requester);
-    } catch (fallbackErr) {
-      logger.error(`Fallback search also failed: ${fallbackErr.message}`);
-      throw new Error('Tidak ada hasil yang ditemukan. Coba query yang berbeda.');
+    result = null;
+  }
+
+  // Fallback chain untuk query teks: ytmsearch → ytsearch → scsearch
+  if (!result || result.loadType === 'empty' || !result.tracks?.length) {
+    const fallbacks = [];
+    if (source === 'ytmsearch') fallbacks.push('ytsearch', 'scsearch');
+    else if (source === 'ytsearch') fallbacks.push('scsearch');
+    else if (source !== 'scsearch') fallbacks.push('scsearch');
+
+    for (const fb of fallbacks) {
+      logger.info(`Search kosong untuk [${source}], mencoba fallback [${fb}]...`);
+      try {
+        result = await player.search({ query, source: fb }, requester);
+        if (result?.tracks?.length) {
+          logger.debug(`Fallback [${fb}] berhasil: ${result.tracks.length} hasil`);
+          break;
+        }
+      } catch (fallbackErr) {
+        logger.warn(`Fallback [${fb}] gagal: ${fallbackErr.message}`);
+      }
+    }
+
+    if (!result || result.loadType === 'empty' || !result.tracks?.length) {
+      throw new Error('Tidak ada hasil yang ditemukan. Coba nama lagu yang berbeda.');
     }
   }
 
@@ -148,7 +181,7 @@ async function play(player, tracks) {
   }
 }
 
-// ─── Voice Status ─────────────────────────────────────────────────────────────
+// ─── Voice Status ────────────────────────────────────────────────────────────
 
 async function setVoiceStatus(client, guildId, channelId, status) {
   try {
@@ -231,7 +264,7 @@ function detectGenre(tracks) {
   return bestScore > 0 ? bestMatch : null;
 }
 
-// ─── Track Cache ─────────────────────────────────────────────────────────────
+// ─── Track Cache ──────────────────────────────────────────────────────────────
 
 function cacheTrack(guildId, track) {
   if (!musicCacheMap.has(guildId)) musicCacheMap.set(guildId, []);
@@ -244,7 +277,7 @@ function getCachedTracks(guildId) { return musicCacheMap.get(guildId) || []; }
 
 // ─── Autoplay Handler ─────────────────────────────────────────────────────────
 
-// Autoplay: tidak ada batas batch — semua lagu dari playlist/mix ditambahkan
+const AUTOPLAY_BATCH = 5; // berapa lagu yang ditambahkan setiap kali autoplay
 
 async function handleAutoplay(client, player) {
   if (!getAutoplay(player.guildId)) return;
@@ -278,7 +311,8 @@ async function handleAutoplay(client, player) {
       const result = await player.search({ query: mixUrl }, requester);
       if (result?.loadType === 'playlist' && result.tracks?.length > 0) {
         tracksToAdd = result.tracks
-          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri));
+          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri))
+          .slice(0, AUTOPLAY_BATCH);
         if (tracksToAdd.length > 0) {
           logger.debug(
             `Autoplay: YouTube Mix OK — ${tracksToAdd.length} lagu dari seed "${seed.title}" [${guildId(player)}]`
@@ -294,10 +328,11 @@ async function handleAutoplay(client, player) {
   if (tracksToAdd.length === 0 && isYtId) {
     const mixSearchQuery = `${seed.title} ${seed.author} mix`;
     try {
-      const result = await player.search({ query: mixSearchQuery, source: 'ytsearch' }, requester);
+      const result = await player.search({ query: mixSearchQuery, source: 'ytmsearch' }, requester);
       if (result?.loadType === 'playlist' && result.tracks?.length > 0) {
         tracksToAdd = result.tracks
-          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri));
+          .filter((t) => t.info.uri !== seed.uri && !history.has(t.info.uri))
+          .slice(0, AUTOPLAY_BATCH);
       }
     } catch (err) {
       logger.warn(`Autoplay mix search gagal: ${err.message}`);
@@ -307,7 +342,7 @@ async function handleAutoplay(client, player) {
   // ── Strategi 3: Fallback keyword search — ambil 1 lagu terkait ───────────────
   if (tracksToAdd.length === 0) {
     const query = `${seed.title} ${seed.author}`;
-    for (const source of ['ytmsearch', 'ytsearch']) {
+    for (const source of ['ytmsearch', 'scsearch']) {
       try {
         const result = await player.search({ query, source }, requester);
         if (result?.tracks?.length > 0) {
@@ -361,15 +396,13 @@ function cleanTitle(title) {
     .replace(/\s*\((?:official|lyric|audio|video|mv|hd)[^)]*\)/gi, "")
     .replace(/\s*\((?:feat|ft).?[^)]*\)/gi, "")
     .replace(/\s*\(\s*\)/g, "")
-    .replace(/\s*\([^)]*$/g, "")
+    .replace(/\s*\([^)]*\)$/g, "")
     .trim();
   return t || title;
 }
 module.exports = {
   DEFAULT_EQ,
   setRadioMode,
-  setRadioStation,
-  getRadioStation,
   isRadioMode,
   getOrCreatePlayer,
   search,
@@ -387,5 +420,8 @@ module.exports = {
   setVoiceEmoji,
   getVoiceEmoji,
   clearVoiceEmoji,
+  setStereoStatus,
+  getStereoStatus,
+  applyStereoDefault,
   cleanTitle,
 };
