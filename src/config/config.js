@@ -72,6 +72,12 @@ module.exports = {
     port: parseInt(process.env.PORT || '3000'),
   },
 
+  lyrics: {
+    // Opsional: API key Genius untuk fallback lirik teks
+    // Dapatkan dari https://genius.com/api-clients (Client Access Token)
+    geniusApiKey: process.env.GENIUS_API_KEY || null,
+  },
+
   colors: {
     primary: 0x5865F2,
     success: 0x57F287,

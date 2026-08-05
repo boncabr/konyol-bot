@@ -52,15 +52,22 @@ plugins:
       - "preview"
       - "filler"
       - "music_offtopic"
+  # ── Lyrics: lirik lagu dari YouTube (timed) atau Genius (teks) ──
+  lyrics:
+    countryCode: id
+    # geniusApiKey: ""  # opsional — aktifkan jika ingin fallback ke Genius
+    #                     Dapatkan key dari https://genius.com/api-clients
 
 lavalink:
   plugins:
     - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-  repository: "https://maven.lavalink.dev/releases"
+      repository: "https://maven.lavalink.dev/releases"
     - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.4.0"
       repository: "https://maven.lavalink.dev/releases"
     - dependency: "com.github.topi314.sponsorblock:sponsorblock-plugin:3.0.1"
       repository: "https://jitpack.io"
+    - dependency: "me.duncte123:java-lyrics-plugin:1.6.6"
+      repository: "https://maven.lavalink.dev/releases"
   server:
     password: "Ariekonur0"
     sources:
