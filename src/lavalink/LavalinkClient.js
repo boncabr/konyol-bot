@@ -101,12 +101,14 @@ function createLavalinkManager(client) {
     `Opus Quality: ${audioConfig.opusEncodingQuality}/10, Stereo Depth: ${audioConfig.stereoDepth}`
   );
 
+  // nodeManager 'error' adalah event level rendah yang sering menembak bersamaan
+  // dengan 'nodeError' — cukup log saja agar tidak double-count handleNodeFailure
   try {
     if (manager.nodeManager) {
       manager.nodeManager.on('error', (node, error) => {
         const msg = error?.message || (typeof error === 'string' ? error : 'unknown error');
-        logger.error(`Lavalink NodeManager raw error [${node?.id || 'unknown'}]: ${msg}`);
-        handleNodeFailure(node?.id || 'unknown').catch(() => {});
+        logger.warn(`Lavalink NodeManager raw error [${node?.id || 'unknown'}]: ${msg}`);
+        // Tidak memanggil handleNodeFailure di sini — sudah ditangani oleh 'nodeError' di bawah
       });
     }
   } catch (e) {
@@ -119,11 +121,13 @@ function createLavalinkManager(client) {
   });
 
   manager.on('nodeDisconnect', (node, reason) => {
-    logger.warn(`⚠️  Lavalink node [${node.id}] terputus: ${reason?.reason || 'unknown'} — mencoba reconnect...`);
-    handleNodeFailure(node.id).catch(() => {});
+    // Hanya log — tidak memanggil handleNodeFailure agar tidak double-count
+    // saat lavalink-client melakukan retry (setiap retry gagal akan trigger 'nodeError')
+    logger.warn(`⚠️  Lavalink node [${node.id}] terputus: ${reason?.reason || 'unknown'} — lavalink-client akan mencoba reconnect otomatis...`);
   });
 
   manager.on('nodeError', (node, error) => {
+    // Satu-satunya tempat handleNodeFailure dipanggil — untuk menghindari triple-counting
     const msg = error?.message || (typeof error === 'string' ? error : 'connection error');
     logger.error(`❌ Lavalink node [${node?.id || 'unknown'}] error: ${msg}`);
     handleNodeFailure(node?.id || 'unknown').catch(() => {});

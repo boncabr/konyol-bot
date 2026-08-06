@@ -1,81 +1,42 @@
 const logger = require('./logger');
 
-// Naikkan threshold — biarkan lavalink-client retry + fallback node dulu
-// sebelum trigger Railway redeploy (yang tidak berguna jika node external mati)
-const FAIL_THRESHOLD = 20;
-const REDEPLOY_COOLDOWN_MS = 10 * 60 * 1000; // 10 menit
+/**
+ * lavalinkRecovery.js
+ *
+ * Tujuan file ini: melacak berapa kali suatu node gagal agar bisa
+ * di-log dan di-reset saat node berhasil reconnect.
+ *
+ * PENTING: TIDAK ada Railway redeploy di sini.
+ * Alasan: merestart bot TIDAK memperbaiki server Lavalink yang memang sedang mati.
+ * Yang terjadi justru sebaliknya — semua user yang sedang putar musik terputus,
+ * padahal bot sebenarnya masih bisa berjalan via node lain (fallback).
+ *
+ * Failover antar node ditangani oleh lavalink-client secara otomatis
+ * berdasarkan retryAmount & retryDelay yang dikonfigurasi di LavalinkClient.js.
+ */
+
+// Threshold hanya untuk keperluan logging (bukan trigger redeploy)
+const LOG_THRESHOLD = 5;
 
 const failCounts = new Map();
-let lastRedeployAt = 0;
-
-async function triggerRailwayRedeploy() {
-  const token = process.env.RAILWAY_TOKEN;
-  const serviceId = process.env.RAILWAY_SERVICE_ID;
-  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
-
-  if (!token) {
-    logger.warn('[Recovery] RAILWAY_TOKEN tidak diset — skip redeploy');
-    return false;
-  }
-
-  if (!serviceId || !environmentId) {
-    logger.warn('[Recovery] RAILWAY_SERVICE_ID atau RAILWAY_ENVIRONMENT_ID tidak diset — skip redeploy');
-    return false;
-  }
-
-  const now = Date.now();
-  if (now - lastRedeployAt < REDEPLOY_COOLDOWN_MS) {
-    logger.warn('[Recovery] Redeploy cooldown aktif — skip');
-    return false;
-  }
-
-  const query = `
-    mutation {
-      serviceInstanceRedeploy(serviceId: "${serviceId}", environmentId: "${environmentId}")
-    }
-  `;
-
-  try {
-    const res = await fetch('https://backboard.railway.app/graphql/v2', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ query }),
-    });
-
-    const data = await res.json();
-    if (data.errors) {
-      logger.error(`[Recovery] Railway redeploy error: ${JSON.stringify(data.errors)}`);
-      return false;
-    }
-
-    lastRedeployAt = now;
-    logger.info('[Recovery] ✅ Railway redeploy berhasil dipicu');
-    return true;
-  } catch (err) {
-    logger.error(`[Recovery] Railway redeploy fetch error: ${err.message}`);
-    return false;
-  }
-}
 
 async function handleNodeFailure(nodeId) {
   const count = (failCounts.get(nodeId) || 0) + 1;
   failCounts.set(nodeId, count);
 
-  logger.warn(`[Recovery] Node [${nodeId}] gagal ${count}x`);
-
-  if (count >= FAIL_THRESHOLD) {
-    logger.error(`[Recovery] Node [${nodeId}] gagal ${count}x — memicu Railway redeploy...`);
-    failCounts.set(nodeId, 0);
-    await triggerRailwayRedeploy();
+  if (count <= LOG_THRESHOLD || count % 10 === 0) {
+    logger.warn(`[Recovery] Node [${nodeId}] gagal ${count}x — lavalink-client akan retry otomatis.`);
   }
+
+  // Tidak ada redeploy. Bot tetap jalan via node lain jika tersedia.
 }
 
 function resetNodeFailCount(nodeId) {
+  const prev = failCounts.get(nodeId) || 0;
+  if (prev > 0) {
+    logger.info(`[Recovery] Node [${nodeId}] kembali terhubung setelah ${prev}x gagal — fail count direset.`);
+  }
   failCounts.set(nodeId, 0);
-  logger.debug(`[Recovery] Node [${nodeId}] fail count direset`);
 }
 
 module.exports = { handleNodeFailure, resetNodeFailCount };
