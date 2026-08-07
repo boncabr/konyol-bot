@@ -18,16 +18,6 @@ module.exports = {
         retryAmount: 15,
         retryDelay: 5000,
       },
-      {
-        id: 'fallback',
-        host: process.env.LAVALINK_HOST_2 || 'lavalink.serenetia.com',
-        port: parseInt(process.env.LAVALINK_PORT_2 || '443'),
-        password: process.env.LAVALINK_PASSWORD_2 || 'https://dsc.gg/srnti',
-        secure: process.env.LAVALINK_SECURE_2 === 'true',
-        selfSigned: false,
-        retryAmount: 15,
-        retryDelay: 5000,
-      },
     ],
   },
 
