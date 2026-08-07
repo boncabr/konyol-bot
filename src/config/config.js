@@ -34,7 +34,7 @@ module.exports = {
   music: {
     defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '100'),
     maxQueueSize: 500,
-    maxDuration: parseInt(process.env.MAX_DURATION || '7200000'),
+    maxDuration: parseInt(process.env.MAX_DURATION || '28800000'),
     searchPlatform: 'ytsearch',
     leaveOnEmptyDelay: 30000,
     leaveOnEndDelay: 30000,
