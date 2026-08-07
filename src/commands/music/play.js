@@ -104,7 +104,7 @@ async function handlePlay(client, ctx, queryStr) {
       if (maxDuration > 0 && !track.info.isStream && track.info.duration > maxDuration) {
         const embed = errorEmbed(
           `❌ Lagu **${track.info.title}** memiliki durasi **${formatDuration(track.info.duration)}** ` +
-          `yang melebihi batas maksimum **${formatDuration(maxDuration)}** (2 jam).\n` +
+          `yang melebihi batas maksimum **${formatDuration(maxDuration)}**.\n` +
           `Coba lagu yang lebih pendek.`
         );
         return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
