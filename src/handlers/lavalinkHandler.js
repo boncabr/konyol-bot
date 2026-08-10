@@ -80,7 +80,7 @@ async function loadLavalinkEvents(client) {
       if (voiceChannel) {
         const voiceEmoji = getVoiceEmoji(player.guildId);
         const radioStation = isRadioMode(player.guildId) ? getRadioStation(player.guildId) : null;
-        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
+        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
         const displayTitle = radioStation ? `📻 Radio: ${radioStation}` : track.info.title;
         const displayAuthor = radioStation ? 'Radio Mode' : track.info.author;
         const status = voiceEmoji
