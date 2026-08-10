@@ -94,7 +94,7 @@ async function handleEmoji(client, ctx, args) {
       const player = client.lavalink.getPlayer(guildId);
       if (player?.queue?.current) {
         const track = player.queue.current;
-        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
+        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
         const status = `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
         await setVoiceStatus(client, guildId, player.voiceChannelId, status).catch(() => {});
       }
