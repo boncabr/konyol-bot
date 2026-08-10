@@ -78,34 +78,16 @@ module.exports = {
         return;
       }
 
-      // ── Humans left VC — leave if empty (skip for radio mode) ───────────────
+      // ── Humans left VC — previously would leave if empty; now we STAY by design ─
       if (!player.voiceChannelId) return;
       const voiceChannel = oldState.guild.channels.cache.get(player.voiceChannelId);
       if (!voiceChannel) return;
 
       const members = voiceChannel.members.filter((m) => !m.user.bot);
       if (members.size === 0) {
-        // Radio mode: NEVER leave even if VC is empty
-        if (isRadioMode(guildId)) {
-          logger.debug(`VC empty but radio mode active in guild ${guildId} — staying`);
-          return;
-        }
-
-        logger.debug(`Voice channel empty in guild ${guildId} — scheduling leave in 30s`);
-        setTimeout(async () => {
-          try {
-            const p = client.lavalink.getPlayer(guildId);
-            if (!p) return;
-            const ch = oldState.guild.channels.cache.get(p.voiceChannelId);
-            const still = ch?.members.filter((m) => !m.user.bot).size ?? 0;
-            if (still === 0 && !isRadioMode(guildId)) {
-              await p.destroy();
-              logger.info(`Left empty voice channel in guild ${guildId}`);
-            }
-          } catch (err) {
-            logger.error(`Leave-empty error: ${err.message}`);
-          }
-        }, 30000);
+        // New behavior: always stay in VC unless explicitly told to leave via command
+        logger.debug(`Voice channel empty in guild ${guildId} — staying as configured (no auto-leave)`);
+        return;
       }
     } catch (err) {
       logger.error(`voiceStateUpdate error: ${err.message}`);
