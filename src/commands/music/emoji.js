@@ -27,7 +27,7 @@ async function handleEmoji(client, ctx, args) {
         || player.voiceChannelId
         || player.options?.voiceChannelId;
       if (vcId) {
-        const DEFAULT_EMOJI = '<a:BearGuitar:1472513366764290252>';
+        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
         const status = `**${DEFAULT_EMOJI}${track.info.title} 𝒃𝒚 ${track.info.author}**`;
         await setVoiceStatus(client, guildId, vcId, status);
       }
