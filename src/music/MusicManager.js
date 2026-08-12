@@ -2,10 +2,10 @@ const logger = require('../utils/logger');
 const config = require('../config/config');
 
 const DEFAULT_EQ = [
-  { band:  0, gain:  0.2   }, // 20Hz   — sub bass
+  { band:  0, gain:  0.10   }, // 20Hz   — sub bass
   { band:  1, gain:  0.15  }, // 60Hz   — bass
-  { band:  2, gain:  0.1   }, // 250Hz  — warm
-  { band:  3, gain:  0.05  }, // 500Hz  — presence
+  { band:  2, gain:  0.10   }, // 250Hz  — warm
+  { band:  3, gain:  0.00  }, // 500Hz  — presence
   { band:  4, gain:  0.0   }, // 1kHz   — midrange
   { band:  5, gain:  -0.05 }, // 2kHz   — clarity
   { band:  6, gain:  -0.1  }, // 4kHz   — air
