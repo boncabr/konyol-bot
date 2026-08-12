@@ -21,6 +21,10 @@ const DEFAULT_EQ = [
 
 async function applyDefaultEQ(player) {
   try {
+    if (!player?.filterManager || typeof player.filterManager.setEqualizer !== 'function') {
+      logger.debug('[EQ] filterManager not available on player — skipping applyDefaultEQ');
+      return;
+    }
     await player.filterManager.setEqualizer(DEFAULT_EQ);
     logger.debug('[EQ] Default bass-smooth EQ diterapkan.');
   } catch (e) {
@@ -32,6 +36,10 @@ async function applyDefaultEQ(player) {
 // Applied to every player on creation — no user interaction needed
 async function applyStereoDefault(player) {
   try {
+    if (!player?.filterManager || typeof player.filterManager.setChannelMix !== 'function') {
+      logger.debug('[STEREO] filterManager or setChannelMix not available — skipping stereo apply');
+      return;
+    }
     // Force 2-channel stereo output
     await player.filterManager.setChannelMix({
       leftToLeft: 1.0,
@@ -97,6 +105,14 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       await applyStereoDefault(player);
       setStereoStatus(guildId, true);
       logger.info(`[STEREO] Stereo audio initialized for guild ${guildId}`);
+
+      // Apply default EQ automatically on new player creation (safe-guarded)
+      try {
+        await applyDefaultEQ(player);
+        logger.info(`[EQ] Default EQ applied for guild ${guildId}`);
+      } catch (eqErr) {
+        logger.warn(`[EQ] Could not apply default EQ for guild ${guildId}: ${eqErr.message}`);
+      }
     } catch (err) {
       logger.warn(`[STEREO] Could not initialize stereo for guild ${guildId}: ${err.message}`);
     }
