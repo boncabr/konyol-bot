@@ -12,7 +12,7 @@ const FILTERS = {
     description: 'Matikan semua filter audio',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setEqualizer(DEFAULT_EQ);
+      await player.filterManager.setEQ(DEFAULT_EQ);
     },
   },
   bassboost: {
