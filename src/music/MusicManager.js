@@ -25,7 +25,7 @@ async function applyDefaultEQ(player) {
       logger.debug('[EQ] filterManager not available on player — skipping applyDefaultEQ');
       return;
     }
-    await player.filterManager.setEqualizer(DEFAULT_EQ);
+    await player.filterManager.setEQ(DEFAULT_EQ);
     logger.debug('[EQ] Default bass-smooth EQ diterapkan.');
   } catch (e) {
     logger.warn('[EQ] Gagal terapkan default EQ: ' + e.message);
