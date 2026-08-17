@@ -88,7 +88,7 @@ lavalink:
       vibrato: false
       distortion: false
       rotation: false
-      channelMix: true
+      channelMix: false
       lowPass: false
     # ── v4.0.8: Non-allocating frame buffers (hemat memori server) ──
     nonAllocating: true
