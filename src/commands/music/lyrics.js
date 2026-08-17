@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { errorEmbed, createEmbed } = require('../../utils/embeds');
-const { fetchLyrics, LyricsNotFoundError, PluginNotInstalledError } = require('../../utils/lyricsClient');
+const { fetchLyrics, fetchGeniusLyrics, LyricsNotFoundError, PluginNotInstalledError } = require('../../utils/lyricsClient');
 const config = require('../../config/config');
+const logger = require('../../utils/logger');
 
 // Batas karakter per embed (Discord max 4096, ambil margin aman)
 const EMBED_CHAR_LIMIT = 3900;
@@ -93,8 +94,35 @@ async function handleLyrics(client, ctx) {
   const trackAuthor = track.info?.author || 'Unknown';
   const artworkUrl = track.info?.artworkUrl || null;
 
+  let data;
+  let usedFallback = false;
+
   try {
-    const data = await fetchLyrics(player);
+    // Step 1: Coba ambil dari Lavalink plugin terlebih dahulu
+    logger.debug(`[Lyrics] Attempting to fetch from Lavalink: ${trackTitle}`);
+    data = await fetchLyrics(player);
+
+  } catch (err) {
+    // Step 2: Jika Lavalink gagal (404 lirik tidak ditemukan), fallback ke Genius
+    if (err instanceof LyricsNotFoundError || err instanceof PluginNotInstalledError) {
+      logger.info(`[Lyrics] Lavalink failed, trying Genius fallback for: ${trackTitle} - ${trackAuthor}`);
+      
+      try {
+        data = await fetchGeniusLyrics(trackTitle, trackAuthor);
+        usedFallback = true;
+        logger.info(`[Lyrics] Successfully fetched from Genius fallback`);
+      } catch (geniusErr) {
+        // Jika Genius juga gagal, throw error
+        logger.warn(`[Lyrics] Genius fallback also failed: ${geniusErr.message}`);
+        throw err; // Lempar error Lavalink asli, bukan Genius
+      }
+    } else {
+      // Error lain (connection issues, dll), throw langsung
+      throw err;
+    }
+  }
+
+  try {
     const chunks = formatLyrics(data, player.position ?? 0);
 
     // Maksimum 10 embed per pesan (batas Discord API)
@@ -108,7 +136,13 @@ async function handleLyrics(client, ctx) {
       // Hanya embed pertama yang punya judul dan thumbnail
       if (i === 0) {
         embed.setTitle(`🎵 Lirik — ${trackTitle}`);
-        embed.setFooter({ text: `${trackAuthor}  •  ${data.type === 'timed' ? 'Timed Lyrics' : 'Text Lyrics'}` });
+        
+        let footerText = `${trackAuthor}  •  ${data.type === 'timed' ? 'Timed Lyrics' : 'Text Lyrics'}`;
+        if (usedFallback) {
+          footerText += '  •  📖 Genius';
+        }
+        
+        embed.setFooter({ text: footerText });
         if (artworkUrl) embed.setThumbnail(artworkUrl);
       }
 
