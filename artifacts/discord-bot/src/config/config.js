@@ -11,10 +11,10 @@ module.exports = {
       // Primary node — override via Railway env vars
       {
         id: 'primary',
-        host: process.env.LAVALINK_HOST || 'lava-v4.ajieblogs.eu.org',
+        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
         port: parseInt(process.env.LAVALINK_PORT || '443'),
-        password: process.env.LAVALINK_PASSWORD || 'https://dsc.gg/ajidevserver',
-        secure: process.env.LAVALINK_SECURE !== 'false',
+        password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
+        secure: process.env.LAVALINK_SECURE !== 'true',
       },
       // Fallback node 1 — Jirayu v4 (global, non-SSL)
       ...(process.env.LAVALINK_HOST ? [] : [{
