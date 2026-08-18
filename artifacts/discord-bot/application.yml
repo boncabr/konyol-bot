@@ -36,7 +36,7 @@ plugins:
     spotify:
       clientId: ""
       clientSecret: ""
-      countryCode: "US"
+      countryCode: "ID"
       playlistLoadLimit: 6
       albumLoadLimit: 6
   # ── SponsorBlock: skip segmen sponsor/intro/outro otomatis di YouTube ──
@@ -75,11 +75,11 @@ lavalink:
       vibrato: false
       distortion: false
       rotation: false
-      channelMix: false
+      channelMix: true
       lowPass: false
     # ── v4.0.8: Non-allocating frame buffers (hemat memori server) ──
     nonAllocating: true
-    bufferDurationMs: 500
+    bufferDurationMs: 200
     frameBufferDurationMs: 5000
     opusEncodingQuality: 10
     resamplingQuality: HIGH
