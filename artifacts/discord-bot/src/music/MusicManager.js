@@ -1,19 +1,73 @@
 const logger = require('../utils/logger');
 const config = require('../config/config');
 
+const DEFAULT_EQ = [
+  { band:  0, gain:  0.10   }, // 20Hz   — sub bass
+  { band:  1, gain:  0.15  }, // 60Hz   — bass
+  { band:  2, gain:  0.10   }, // 250Hz  — warm
+  { band:  3, gain:  0.00  }, // 500Hz  — presence
+  { band:  4, gain:  0.0   }, // 1kHz   — midrange
+  { band:  5, gain:  -0.05 }, // 2kHz   — clarity
+  { band:  6, gain:  -0.1  }, // 4kHz   — air
+  { band:  7, gain:  -0.05 }, // 8kHz   — brilliance
+  { band:  8, gain:  0.0   }, // 16kHz  — edge
+  { band:  9, gain:  0.0   }, // 25kHz  — extreme treble (usually inaudible)
+  { band: 10, gain:  0.03  }, // 2.5kHz — vokal sedikit lebih hadir
+  { band: 11, gain:  0.05  }, // 4kHz   — detail instrumen
+  { band: 12, gain:  0.05  }, // 6.3kHz — udara, balance treble
+  { band: 13, gain:  0.04  }, // 10kHz  — sedikit airy
+  { band: 14, gain:  0.00  }, // 16kHz  — netral
+];
+
+async function applyDefaultEQ(player) {
+  try {
+    await player.filterManager.setEqualizer(DEFAULT_EQ);
+    logger.debug('[EQ] Default bass-smooth EQ diterapkan.');
+  } catch (e) {
+    logger.warn('[EQ] Gagal terapkan default EQ: ' + e.message);
+  }
+}
+
+// ─── Stereo Audio Setup (DEFAULT) ──────────────────────────────────────────────
+// Applied to every player on creation — no user interaction needed
+async function applyStereoDefault(player) {
+  try {
+    // Force 2-channel stereo output
+    await player.filterManager.setChannelMix({
+      leftToLeft: 1.0,
+      leftToRight: 0.0,
+      rightToLeft: 0.0,
+      rightToRight: 1.0,
+    });
+    logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
+  } catch (e) {
+    logger.warn('[STEREO] Failed to apply stereo: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const autoplayMap = new Map();
 const musicCacheMap = new Map();
 const radioModeMap = new Map();
+const radioStationMap = new Map();
 const seedMap = new Map();            // { title, author, uri, identifier }
 const autoplayHistoryMap = new Map(); // Set<uri> — sudah diputar dalam sesi autoplay
 const voiceEmojiMap = new Map();      // guildId → custom emoji string
+const stereoStatusMap = new Map();    // guildId → stereo status (always true, but tracked for logging)
 
 // ─── Radio Mode ───────────────────────────────────────────────────────────────
 
 function setRadioMode(guildId, enabled) { radioModeMap.set(guildId, enabled); }
+function setRadioStation(guildId, name) { radioStationMap.set(guildId, name); }
+function getRadioStation(guildId) { return radioStationMap.get(guildId) || null; }
 function isRadioMode(guildId) { return radioModeMap.get(guildId) === true; }
 
-// ─── Player Management ───────────────────────────────────────────────────────
+// ─── Stereo Status (Always TRUE) ──────────────────────────────────────────────
+function setStereoStatus(guildId, enabled) { stereoStatusMap.set(guildId, enabled); }
+function getStereoStatus(guildId) { return stereoStatusMap.get(guildId) !== false; } // Default TRUE
+
+// ─── Player Management ────────────────────────────────────────────────────────
 
 async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId) {
   const nodes = client.lavalink.nodeManager?.nodes;
@@ -37,6 +91,15 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       volume: config.music.defaultVolume,
       instaUpdateFiltersFix: true,
     });
+
+    // Apply stereo as DEFAULT on new player creation
+    try {
+      await applyStereoDefault(player);
+      setStereoStatus(guildId, true);
+      logger.info(`[STEREO] Stereo audio initialized for guild ${guildId}`);
+    } catch (err) {
+      logger.warn(`[STEREO] Could not initialize stereo for guild ${guildId}: ${err.message}`);
+    }
   } else {
     // Jika bot sudah terhubung ke voice channel lain, tolak — jangan berpindah
     if (player.connected && voiceChannelId && player.voiceChannelId !== voiceChannelId) {
@@ -57,7 +120,7 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
   return player;
 }
 
-// ─── Search & Play ───────────────────────────────────────────────────────────
+// ─── Search & Play ────────────────────────────────────────────────────────────
 
 async function search(player, query, requester) {
   const isUrl = /^https?:\/\//i.test(query);
@@ -118,7 +181,7 @@ async function play(player, tracks) {
   }
 }
 
-// ─── Voice Status ─────────────────────────────────────────────────────────────
+// ─── Voice Status ────────────────────────────────────────────────────────────
 
 async function setVoiceStatus(client, guildId, channelId, status) {
   try {
@@ -201,7 +264,7 @@ function detectGenre(tracks) {
   return bestScore > 0 ? bestMatch : null;
 }
 
-// ─── Track Cache ─────────────────────────────────────────────────────────────
+// ─── Track Cache ──────────────────────────────────────────────────────────────
 
 function cacheTrack(guildId, track) {
   if (!musicCacheMap.has(guildId)) musicCacheMap.set(guildId, []);
@@ -333,11 +396,12 @@ function cleanTitle(title) {
     .replace(/\s*\((?:official|lyric|audio|video|mv|hd)[^)]*\)/gi, "")
     .replace(/\s*\((?:feat|ft).?[^)]*\)/gi, "")
     .replace(/\s*\(\s*\)/g, "")
-    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*\([^)]*\)$/g, "")
     .trim();
   return t || title;
 }
 module.exports = {
+  DEFAULT_EQ,
   setRadioMode,
   isRadioMode,
   getOrCreatePlayer,
@@ -356,5 +420,8 @@ module.exports = {
   setVoiceEmoji,
   getVoiceEmoji,
   clearVoiceEmoji,
+  setStereoStatus,
+  getStereoStatus,
+  applyStereoDefault,
   cleanTitle,
 };
