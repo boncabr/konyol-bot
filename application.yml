@@ -99,7 +99,7 @@ lavalink:
     trackStuckThresholdMs: 10000
     # ── v4.0.8: Seek ghosting untuk seek yang lebih mulus ──
     useSeekGhosting: true
-    youtubePlaylistLoadLimit: 10
+    youtubePlaylistLoadLimit: 6
     playerUpdateInterval: 2
     youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
