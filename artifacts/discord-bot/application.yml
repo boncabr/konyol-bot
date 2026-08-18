@@ -16,8 +16,6 @@ plugins:
       - ANDROID
       - IOS
       - TVHTML5EMBEDDED
-    # YouTube cookies untuk bypass auth error (isi cookies.txt dengan format Netscape)
-    cookiesPath: "/app/cookies.txt"
     pot:
       token: ""
       visitorData: ""
@@ -52,26 +50,15 @@ plugins:
       - "preview"
       - "filler"
       - "music_offtopic"
-  # ── Lyrics: lirik lagu dari YouTube (timed) atau Genius (teks) ──
-  lyrics:
-    countryCode: id
-    # geniusApiKey: ""  # opsional — aktifkan jika ingin fallback ke Genius
-    #                     Dapatkan key dari https://genius.com/api-clients
 
 lavalink:
   plugins:
-    - dependency: "dev.lavalink.youtube:youtube-plugin:1.18.2"
-      repository: "https://maven.lavalink.dev/releases"
-    - dependency: "com.github.topi314.lavasrc:lavasrc-plugin:4.4.0"
-      repository: "https://maven.lavalink.dev/releases"
     - dependency: "com.github.topi314.sponsorblock:sponsorblock-plugin:3.0.1"
       repository: "https://jitpack.io"
-    - dependency: "me.duncte123:java-lyrics-plugin:1.6.6"
-      repository: "https://maven.lavalink.dev/releases"
   server:
     password: "Ariekonur0"
     sources:
-      youtube: false
+      youtube: true
       bandcamp: true
       soundcloud: true
       twitch: true
@@ -88,11 +75,11 @@ lavalink:
       vibrato: false
       distortion: false
       rotation: false
-      channelMix: false
+      channelMix: true
       lowPass: false
     # ── v4.0.8: Non-allocating frame buffers (hemat memori server) ──
     nonAllocating: true
-    bufferDurationMs: 800
+    bufferDurationMs: 200
     frameBufferDurationMs: 5000
     opusEncodingQuality: 10
     resamplingQuality: HIGH
@@ -100,7 +87,7 @@ lavalink:
     # ── v4.0.8: Seek ghosting untuk seek yang lebih mulus ──
     useSeekGhosting: true
     youtubePlaylistLoadLimit: 6
-    playerUpdateInterval: 2
+    playerUpdateInterval: 5
     youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
     gc-warnings: true
