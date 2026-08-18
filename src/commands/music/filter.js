@@ -12,7 +12,7 @@ const FILTERS = {
     description: 'Matikan semua filter audio',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setEQ(DEFAULT_EQ);
+      await player.filterManager.setEqualizer(DEFAULT_EQ);
     },
   },
   bassboost: {
@@ -21,7 +21,7 @@ const FILTERS = {
     description: 'Perkuat suara bass',
     apply: async (player) => {
       await player.filterManager.resetFilters();
-      await player.filterManager.setEQ([
+      await player.filterManager.setEqualizer([
         { band: 0, gain: 0.22 },
         { band: 1, gain: 0.18 },
         { band: 2, gain: 0.13 },
