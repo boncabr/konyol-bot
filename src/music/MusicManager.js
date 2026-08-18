@@ -2,9 +2,9 @@ const logger = require('../utils/logger');
 const config = require('../config/config');
 
 const DEFAULT_EQ = [
-  { band:  0, gain:  0.50   }, // 20Hz   — sub bass
-  { band:  1, gain:  0.40  }, // 60Hz   — bass
-  { band:  2, gain:  0.20   }, // 250Hz  — warm
+  { band:  0, gain:  0.10   }, // 20Hz   — sub bass
+  { band:  1, gain:  0.15  }, // 60Hz   — bass
+  { band:  2, gain:  0.10   }, // 250Hz  — warm
   { band:  3, gain:  0.00  }, // 500Hz  — presence
   { band:  4, gain:  0.0   }, // 1kHz   — midrange
   { band:  5, gain:  -0.05 }, // 2kHz   — clarity
@@ -21,11 +21,7 @@ const DEFAULT_EQ = [
 
 async function applyDefaultEQ(player) {
   try {
-    if (!player?.filterManager || typeof player.filterManager.setEqualizer !== 'function') {
-      logger.debug('[EQ] filterManager not available on player — skipping applyDefaultEQ');
-      return;
-    }
-    await player.filterManager.setEQ(DEFAULT_EQ);
+    await player.filterManager.setEqualizer(DEFAULT_EQ);
     logger.debug('[EQ] Default bass-smooth EQ diterapkan.');
   } catch (e) {
     logger.warn('[EQ] Gagal terapkan default EQ: ' + e.message);
@@ -36,16 +32,12 @@ async function applyDefaultEQ(player) {
 // Applied to every player on creation — no user interaction needed
 async function applyStereoDefault(player) {
   try {
-    if (!player?.filterManager || typeof player.filterManager.setChannelMix !== 'function') {
-      logger.debug('[STEREO] filterManager or setChannelMix not available — skipping stereo apply');
-      return;
-    }
     // Force 2-channel stereo output
     await player.filterManager.setChannelMix({
-      leftToLeft: 0.85,
-      leftToRight: 0.15,
-      rightToLeft: 0.15,
-      rightToRight: 0.85,
+      leftToLeft: 1.0,
+      leftToRight: 0.0,
+      rightToLeft: 0.0,
+      rightToRight: 1.0,
     });
     logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
   } catch (e) {
@@ -105,14 +97,6 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       await applyStereoDefault(player);
       setStereoStatus(guildId, true);
       logger.info(`[STEREO] Stereo audio initialized for guild ${guildId}`);
-
-      // Apply default EQ automatically on new player creation (safe-guarded)
-      try {
-        await applyDefaultEQ(player);
-        logger.info(`[EQ] Default EQ applied for guild ${guildId}`);
-      } catch (eqErr) {
-        logger.warn(`[EQ] Could not apply default EQ for guild ${guildId}: ${eqErr.message}`);
-      }
     } catch (err) {
       logger.warn(`[STEREO] Could not initialize stereo for guild ${guildId}: ${err.message}`);
     }
