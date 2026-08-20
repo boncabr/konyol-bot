@@ -40,7 +40,7 @@ lavalink:
       highPass: true            # ← For clarity on stereo output
 
     # Buffer 400ms untuk meminimalkan dropout saat jaringan fluktuatif
-    bufferDurationMs: 400
+    bufferDurationMs: 200
 
     # Frame buffer: 5000ms — cukup untuk latensi tinggi
     frameBufferDurationMs: 5000
