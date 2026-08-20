@@ -86,7 +86,7 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
       guildId,
       voiceChannelId,
       textChannelId,
-      selfDeaf: true,
+      selfDeaf: false,
       selfMute: false,
       volume: config.music.defaultVolume,
       instaUpdateFiltersFix: true,
