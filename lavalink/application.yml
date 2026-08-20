@@ -55,6 +55,7 @@ lavalink:
 
     # Resampling quality saat sumber bukan 48kHz
     resamplingQuality: HIGH
+    nonAllocating: true
 
     # Jumlah thread untuk encoding (0 = auto)
     trackStuckThresholdMs: 10000
