@@ -90,7 +90,7 @@ lavalink:
     playerUpdateInterval: 5
     youtubeSearchEnabled: true
     soundcloudSearchEnabled: true
-    gc-warnings: true
+    gc-warnings: false
 
 metrics:
   prometheus:
