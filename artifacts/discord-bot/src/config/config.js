@@ -46,7 +46,7 @@ module.exports = {
   },
 
   music: {
-    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '100'),
+    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '50'),
     maxQueueSize: 500,
     searchPlatform: 'ytmsearch',
     leaveOnEmptyDelay: 30000,
