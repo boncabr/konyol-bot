@@ -46,12 +46,12 @@ module.exports = {
   },
 
   music: {
-    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '50'),
+    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '80'),
     maxQueueSize: 500,
     searchPlatform: 'ytmsearch',
     leaveOnEmptyDelay: 30000,
     leaveOnEndDelay: 30000,
-    voiceChannelBitrate: 384000,
+    voiceChannelBitrate: 256000,
   },
 
   cooldowns: {
