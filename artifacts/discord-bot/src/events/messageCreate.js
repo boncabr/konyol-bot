@@ -1,9 +1,15 @@
 const { checkCooldown } = require('../utils/cooldown');
 const { errorEmbed } = require('../utils/embeds');
-
+const { handleCommandError } = require('../utils/errorHandler');
 const { setAutoplay, getAutoplay } = require('../music/MusicManager');
 const config = require('../config/config');
 const logger = require('../utils/logger');
+
+// Command yang TIDAK mematikan autoplay saat dijalankan
+const AUTOPLAY_SAFE_COMMANDS = new Set([
+  'autoplay', 'play', 'skip', 'volume', 'nowplaying', 'queue',
+  'pause', 'resume', 'loop', 'seek', 'shuffle', 'remove', 'clear', 'move', 'filter',
+]);
 
 module.exports = {
   name: 'messageCreate',
@@ -30,9 +36,8 @@ module.exports = {
       });
     }
 
-    // Matikan autoplay hanya jika user eksplisit memulai pemutaran baru atau menghentikan bot
-    const AUTOPLAY_RESET_COMMANDS = ['play', 'stop', 'leave'];
-    if (AUTOPLAY_RESET_COMMANDS.includes(commandName) && getAutoplay(message.guild.id)) {
+    // Matikan autoplay hanya jika command bukan bagian dari AUTOPLAY_SAFE_COMMANDS
+    if (!AUTOPLAY_SAFE_COMMANDS.has(commandName) && getAutoplay(message.guild.id)) {
       setAutoplay(message.guild.id, false);
       logger.debug(`Autoplay dimatikan karena command "${commandName}" di guild ${message.guild.id}`);
     }
@@ -40,6 +45,7 @@ module.exports = {
     try {
       await command.execute(client, message, args);
     } catch (err) {
+      await handleCommandError(message, err, true);
       logger.error(`Prefix command error [${commandName}]: ${err.stack}`);
     }
   },
