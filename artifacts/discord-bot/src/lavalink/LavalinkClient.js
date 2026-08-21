@@ -1,6 +1,32 @@
 const { LavalinkManager } = require('lavalink-client');
 const config = require('../config/config');
 const logger = require('../utils/logger');
+const { handleNodeFailure, resetNodeFailCount } = require('../utils/lavalinkRecovery');
+
+/**
+ * Apply TLS settings per-node:
+ * - secure: false  → plain WebSocket (ws://), no TLS involved
+ * - secure: true, selfSigned: false → wss:// dengan CA-verified cert (aman)
+ * - secure: true, selfSigned: true  → wss:// dengan self-signed cert
+ */
+function applyTlsSettings(nodes) {
+  const selfSignedNodes = nodes.filter((n) => n.secure && n.selfSigned);
+  const plainNodes = nodes.filter((n) => !n.secure);
+
+  if (selfSignedNodes.length > 0) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    logger.warn(
+      `[TLS] NODE_TLS_REJECT_UNAUTHORIZED=0 diaktifkan karena node berikut pakai self-signed cert: ` +
+      selfSignedNodes.map((n) => n.id).join(', ') +
+      `. Gunakan LAVALINK_SELF_SIGNED=false jika server sudah pakai certificate dari CA resmi.`
+    );
+  } else {
+    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    if (plainNodes.length > 0) {
+      logger.info(`[TLS] Node tanpa SSL: ${plainNodes.map((n) => n.id).join(', ')} (ws://, no TLS)`);
+    }
+  }
+}
 
 function buildNodes() {
   return config.lavalink.nodes.map((n) => ({
@@ -9,8 +35,7 @@ function buildNodes() {
     port: n.port,
     id: n.id,
     secure: n.secure,
-    version: 'v4',
-    useVersionPath: true,
+    selfSigned: n.selfSigned,
     retryAmount: 50,
     retryDelay: 5000,
     closeOnError: false,
@@ -20,7 +45,35 @@ function buildNodes() {
 
 function createLavalinkManager(client) {
   const nodes = buildNodes();
-  logger.info(`Configuring ${nodes.length} Lavalink node(s): ${nodes.map((n) => n.id).join(', ')}`);
+  applyTlsSettings(nodes);
+
+  logger.info(
+    `Configuring ${nodes.length} Lavalink node(s): ` +
+    nodes.map((n) => `${n.id} (${n.secure ? 'SSL' : 'no-SSL'}${n.selfSigned ? '/self-signed' : ''})`).join(', ')
+  );
+
+  // ─── Stereo Audio Configuration (DEFAULT) ──────────────────────────────────
+  // Stereo is ALWAYS enabled — no user action required
+  // All music will output in 2-channel stereo (48kHz Opus)
+  const audioConfig = config.audio || {};
+  const stereoPlayerOptions = {
+    applyVolumeAsFilter: false,
+    clientBasedPositionUpdateInterval: 100,
+    defaultSearchPlatform: config.music.searchPlatform,
+    volumeDecrementer: 1.0,
+    onDisconnect: {
+      autoReconnect: true,
+      destroyPlayer: false,
+    },
+    onEmptyQueue: {
+      destroyAfterMs: config.music.leaveOnEmptyDelay,
+    },
+    // STEREO IS ALWAYS ENABLED
+    stereo: {
+      enabled: true,
+      depth: audioConfig.stereoDepth || 0.5,
+    },
+  };
 
   const manager = new LavalinkManager({
     nodes,
@@ -36,29 +89,26 @@ function createLavalinkManager(client) {
       id: config.clientId,
       username: 'MusicBot',
     },
-    playerOptions: {
-      applyVolumeAsFilter: false,
-      clientBasedPositionUpdateInterval: 100,
-      defaultSearchPlatform: config.music.searchPlatform,
-      volumeDecrementer: 1.0,
-      onDisconnect: {
-        autoReconnect: true,
-        destroyPlayer: false,
-      },
-      onEmptyQueue: {
-        destroyAfterMs: config.music.leaveOnEmptyDelay,
-      },
-    },
+    playerOptions: stereoPlayerOptions,
     autoSkip: true,
     autoSkipOnResolveError: true,
     emitNewSongsOnly: true,
   });
 
+  // Log stereo configuration on startup
+  logger.info(
+    `🎧 TRUE STEREO AUDIO ACTIVE (DEFAULT): ${audioConfig.sampleRate}Hz, 2-channel, ` +
+    `Opus Quality: ${audioConfig.opusEncodingQuality}/10, Stereo Depth: ${audioConfig.stereoDepth}`
+  );
+
+  // nodeManager 'error' adalah event level rendah yang sering menembak bersamaan
+  // dengan 'nodeError' — cukup log saja agar tidak double-count handleNodeFailure
   try {
     if (manager.nodeManager) {
       manager.nodeManager.on('error', (node, error) => {
         const msg = error?.message || (typeof error === 'string' ? error : 'unknown error');
-        logger.error(`Lavalink NodeManager raw error [${node?.id || 'unknown'}]: ${msg}`);
+        logger.warn(`Lavalink NodeManager raw error [${node?.id || 'unknown'}]: ${msg}`);
+        // Tidak memanggil handleNodeFailure di sini — sudah ditangani oleh 'nodeError' di bawah
       });
     }
   } catch (e) {
@@ -67,15 +117,20 @@ function createLavalinkManager(client) {
 
   manager.on('nodeConnect', (node) => {
     logger.info(`✅ Lavalink node [${node.id}] (${node.options?.host}) terhubung`);
+    resetNodeFailCount(node.id);
   });
 
   manager.on('nodeDisconnect', (node, reason) => {
-    logger.warn(`⚠️  Lavalink node [${node.id}] terputus: ${reason?.reason || 'unknown'} — mencoba reconnect...`);
+    // Hanya log — tidak memanggil handleNodeFailure agar tidak double-count
+    // saat lavalink-client melakukan retry (setiap retry gagal akan trigger 'nodeError')
+    logger.warn(`⚠️  Lavalink node [${node.id}] terputus: ${reason?.reason || 'unknown'} — lavalink-client akan mencoba reconnect otomatis...`);
   });
 
   manager.on('nodeError', (node, error) => {
+    // Satu-satunya tempat handleNodeFailure dipanggil — untuk menghindari triple-counting
     const msg = error?.message || (typeof error === 'string' ? error : 'connection error');
     logger.error(`❌ Lavalink node [${node?.id || 'unknown'}] error: ${msg}`);
+    handleNodeFailure(node?.id || 'unknown').catch(() => {});
   });
 
   manager.on('nodeReconnect', (node) => {
