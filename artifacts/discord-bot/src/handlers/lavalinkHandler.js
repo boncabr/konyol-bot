@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const { setVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
@@ -14,6 +14,8 @@ function toBold(str) {
 
 const COPYRIGHT_ERRORS = ['copyright', 'not available in your country', 'blocked', 'unavailable', 'private', 'removed'];
 const YOUTUBE_AUTH_ERRORS = ['requires login', 'all clients failed', 'video player configuration error', 'sign in to confirm', 'bot traffic', 'age-restricted'];
+const PROXY_ERRORS = ['proxy', 'tunnel', '407', 'econnrefused', 'socket hang up', 'ENOTFOUND'];
+const TIMEOUT_ERRORS = ['timeout', 'ETIMEDOUT', 'EHOSTUNREACH', 'abort'];
 const retryingTracks = new Set();
 
 // Track retry attempts for stuck tracks — max 1 retry per URI before giving up
@@ -22,6 +24,8 @@ const stuckRetryMap = new Map();
 function classifyError(message) {
   if (!message) return 'unknown';
   const lower = message.toLowerCase();
+  if (PROXY_ERRORS.some((e) => lower.includes(e))) return 'proxy';
+  if (TIMEOUT_ERRORS.some((e) => lower.includes(e))) return 'timeout';
   if (COPYRIGHT_ERRORS.some((e) => lower.includes(e))) return 'copyright';
   if (YOUTUBE_AUTH_ERRORS.some((e) => lower.includes(e))) return 'auth';
   return 'generic';
@@ -30,6 +34,10 @@ function classifyError(message) {
 function getFriendlyErrorMsg(type, title) {
   const name = title ? `**${title}**` : 'Lagu ini';
   switch (type) {
+    case 'proxy':
+      return `⚠️ ${name} gagal dimuat karena koneksi proxy. Mencoba sumber lain...`;
+    case 'timeout':
+      return `⏱️ ${name} timeout. Mencoba dari sumber lain...`;
     case 'copyright':
       return `⚠️ ${name} dibatasi hak cipta atau tidak tersedia di wilayah ini. Coba lagu lain ya!`;
     case 'auth':
@@ -71,9 +79,13 @@ async function loadLavalinkEvents(client) {
       const voiceChannel = client.channels.cache.get(player.voiceChannelId);
       if (voiceChannel) {
         const voiceEmoji = getVoiceEmoji(player.guildId);
+        const radioStation = isRadioMode(player.guildId) ? getRadioStation(player.guildId) : null;
+        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
+        const displayTitle = radioStation ? `📻 Radio: ${radioStation}` : track.info.title;
+        const displayAuthor = radioStation ? 'Radio Mode' : track.info.author;
         const status = voiceEmoji
-          ? `${voiceEmoji} ${cleanTitle(track.info.title)} - ${track.info.author}`
-          : `${cleanTitle(track.info.title)} - ${track.info.author}`;
+          ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
+          : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, status);
       }
 
@@ -96,109 +108,112 @@ async function loadLavalinkEvents(client) {
   });
 
   client.lavalink.on('trackStuck', async (player, track) => {
-    const title     = track?.info?.title || 'Unknown';
-    const uri       = track?.info?.uri   || '';
-    const duration  = track?.info?.duration || 0;
-    const retryKey  = `${player.guildId}:${uri}`;
-    const retries   = stuckRetryMap.get(retryKey) || 0;
+    try {
+      const title     = track?.info?.title || 'Unknown';
+      const uri       = track?.info?.uri   || '';
+      const duration  = track?.info?.duration || 0;
+      const retryKey  = `${player.guildId}:${uri}`;
+      const retries   = stuckRetryMap.get(retryKey) || 0;
 
-    logger.warn(`Track stuck: "${title}" in guild ${player.guildId} — retry #${retries} — ${Math.round(duration / 60000)}min`);
+      logger.warn(`Track stuck: "${title}" in guild ${player.guildId} — retry #${retries} — ${Math.round(duration / 60000)}min`);
 
-    const textChannel = client.channels.cache.get(player.textChannelId);
+      const textChannel = client.channels.cache.get(player.textChannelId);
 
-    // ── Helper: selalu paksa maju ke lagu berikutnya ─────────────────────────
-    const forceAdvance = async () => {
-      try {
-        // player.skip() aman dipanggil meski queue kosong —
-        // lavalink-client akan trigger queueEnd secara otomatis
-        await player.skip();
-      } catch (skipErr) {
-        logger.warn(`forceAdvance skip failed: ${skipErr.message}`);
+      // ── Helper: paksa maju ke lagu berikutnya, cegah double-skip ─────────────
+      const forceAdvance = async () => {
+        try {
+          if (!player || !player.connected) {
+            logger.warn(`forceAdvance: player not connected in guild ${player?.guildId}`);
+            return;
+          }
+          await player.stopPlaying(false, false);
+        } catch (skipErr) {
+          logger.warn(`forceAdvance failed: ${skipErr.message}`);
+        }
+      };
+
+      // ── Track panjang (> 5 jam) — langsung lewati tanpa retry ─────────────
+      if (duration > 5 * 60 * 60 * 1000) {
+        logger.warn(`Long track stuck (${Math.round(duration / 60000)}min) — skipping without retry`);
+        stuckRetryMap.delete(retryKey);
+        if (textChannel) {
+          await textChannel.send({
+            content: `⏭️ **${title}** dilewati (stream terputus).`
+          }).catch(() => {});
+        }
+        await forceAdvance();
+        return;
       }
-    };
 
-    // ── Track panjang (> 20 menit) = mix / full album ─────────────────────────
-    // Jangan retry dari awal — langsung lewati ke lagu berikutnya secara diam-diam
-    if (duration > 20 * 60 * 1000) {
-      logger.warn(`Long track stuck (${Math.round(duration / 60000)}min) — skipping without retry`);
+      // ── Coba ulang maksimal 1x (hanya untuk track pendek) ────────────────────
+      if (retries < 1) {
+        stuckRetryMap.set(retryKey, retries + 1);
+        setTimeout(() => stuckRetryMap.delete(retryKey), 120000);
+
+        try {
+          const author = track.info?.author;
+          const query  = author ? `${title} ${author}` : title;
+          let freshResult = null;
+
+          // Coba re-load via URI YouTube — tolak jika URI sama (pasti stuck lagi)
+          if (/youtube\.com|youtu\.be/i.test(uri)) {
+            try {
+              const r = await player.search({ query: uri }, track.requester || { id: client.user.id, username: 'Retry' });
+              if (r?.tracks?.length && r.tracks[0].info.uri !== uri) {
+                freshResult = r;
+              }
+            } catch (_) {}
+          }
+
+          // Fallback: cari dari SoundCloud
+          if (!freshResult) {
+            const scResult = await player.search(
+              { query, source: 'scsearch' },
+              track.requester || { id: client.user.id, username: 'Retry' }
+            ).catch(() => null);
+            if (scResult?.tracks?.length) freshResult = scResult;
+          }
+
+          // Fallback terakhir: cari YouTube dengan judul saja
+          if (!freshResult) {
+            const ytResult = await player.search(
+              { query, source: 'ytsearch' },
+              track.requester || { id: client.user.id, username: 'Retry' }
+            ).catch(() => null);
+            if (ytResult?.tracks?.length && ytResult.tracks[0].info.uri !== uri) {
+              freshResult = ytResult;
+            }
+          }
+
+          if (freshResult?.tracks?.length) {
+            await player.queue.add(freshResult.tracks[0], 0);
+            await player.skip();
+            if (textChannel) {
+              await textChannel.send({
+                content: `🔄 **${title}** mengalami gangguan, mencoba dari sumber lain...`
+              }).catch(() => {});
+            }
+            logger.info(`Track stuck retry OK: "${title}" — alternative source queued`);
+            return;
+          }
+        } catch (err) {
+          logger.warn(`Stuck retry failed for "${title}": ${err.message}`);
+        }
+      }
+
+      // ── Retry gagal atau batas tercapai — paksa lewati ───────────────────────
       stuckRetryMap.delete(retryKey);
+      logger.warn(`Track stuck — giving up on "${title}", forcing advance`);
+
       if (textChannel) {
         await textChannel.send({
-          content: `⏭️ **${title}** dilewati (stream terputus).`
+          content: `⏭️ **${title}** tidak bisa diputar, melewati ke lagu berikutnya.`
         }).catch(() => {});
       }
       await forceAdvance();
-      return;
+    } catch (err) {
+      logger.error(`trackStuck handler error: ${err.message}`);
     }
-
-    // ── Coba ulang maksimal 1x (hanya untuk track pendek) ────────────────────
-    if (retries < 1) {
-      stuckRetryMap.set(retryKey, retries + 1);
-      setTimeout(() => stuckRetryMap.delete(retryKey), 120000);
-
-      try {
-        const author = track.info?.author;
-        const query  = author ? `${title} ${author}` : title;
-        let freshResult = null;
-
-        // Coba re-load via URI YouTube — tapi buang jika URI sama (pasti stuck lagi)
-        if (/youtube\.com|youtu\.be/i.test(uri)) {
-          try {
-            const r = await player.search({ query: uri }, track.requester || { id: client.user.id, username: 'Retry' });
-            // Tolak jika hasil pertama punya URI yang sama — stream-nya sama saja
-            if (r?.tracks?.length && r.tracks[0].info.uri !== uri) {
-              freshResult = r;
-            }
-          } catch (_) {}
-        }
-
-        // Fallback: cari dari SoundCloud (sumber berbeda, tidak akan dapat URI sama)
-        if (!freshResult) {
-          const scResult = await player.search(
-            { query, source: 'scsearch' },
-            track.requester || { id: client.user.id, username: 'Retry' }
-          ).catch(() => null);
-          if (scResult?.tracks?.length) freshResult = scResult;
-        }
-
-        // Fallback terakhir: cari YouTube dengan judul saja (bukan URI)
-        if (!freshResult) {
-          const ytResult = await player.search(
-            { query, source: 'ytsearch' },
-            track.requester || { id: client.user.id, username: 'Retry' }
-          ).catch(() => null);
-          // Tolak jika URI sama
-          if (ytResult?.tracks?.length && ytResult.tracks[0].info.uri !== uri) {
-            freshResult = ytResult;
-          }
-        }
-
-        if (freshResult?.tracks?.length) {
-          await player.queue.add(freshResult.tracks[0], 0);
-          await player.skip();
-          if (textChannel) {
-            await textChannel.send({
-              content: `🔄 **${title}** mengalami gangguan, mencoba dari sumber lain...`
-            }).catch(() => {});
-          }
-          logger.info(`Track stuck retry OK: "${title}" — alternative source queued`);
-          return;
-        }
-      } catch (err) {
-        logger.warn(`Stuck retry failed for "${title}": ${err.message}`);
-      }
-    }
-
-    // ── Retry gagal atau batas tercapai — paksa lewati ───────────────────────
-    stuckRetryMap.delete(retryKey);
-    logger.warn(`Track stuck — giving up on "${title}", forcing advance`);
-
-    if (textChannel) {
-      await textChannel.send({
-        content: `⏭️ **${title}** tidak bisa diputar, melewati ke lagu berikutnya.`
-      }).catch(() => {});
-    }
-    await forceAdvance();
   });
 
   client.lavalink.on('trackError', async (player, track, payload) => {
@@ -216,38 +231,36 @@ async function loadLavalinkEvents(client) {
       const errType = classifyError(errMsg);
       const textChannel = client.channels.cache.get(player.textChannelId);
 
-      if (errType === 'copyright') {
-        if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('copyright', track?.info?.title) }).catch(() => {});
-        if (player.queue.tracks.length > 0) await player.skip();
+      // PENTING: jangan panggil player.skip() di sini.
+      // autoSkip:true sudah otomatis advance queue via TrackEndEvent dari Lavalink.
+      // Memanggil skip() manual + autoSkip = double-skip → seluruh antrian playlist
+      // (misal 25 lagu) habis seketika tanpa ada yang sempat diputar.
+
+      if (errType === 'copyright' || errType === 'proxy' || errType === 'timeout') {
+        if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg(errType, track?.info?.title) }).catch(() => {});
+        // autoSkip akan maju dengan sendirinya
         return;
       }
+
+      retryingTracks.add(retryKey);
+      setTimeout(() => retryingTracks.delete(retryKey), 30000);
 
       if (errType === 'auth') {
-        retryingTracks.add(retryKey);
-        setTimeout(() => retryingTracks.delete(retryKey), 30000);
-
         logger.info(`YouTube auth error for "${track?.info?.title}" — silent fallback`);
-        const fallback = await tryFallbackSearch(client, player, track);
-
-        if (fallback) {
-          await player.queue.add(fallback.track, 0);
-          if (!player.playing) await player.play();
-        } else {
-          if (textChannel) await textChannel.send({ content: `⚠️ Tidak ada versi lain dari **${track?.info?.title}** yang ditemukan. Melewati...` }).catch(() => {});
-          if (player.queue.tracks.length > 0) await player.skip();
-        }
-        return;
       }
 
-      // Generic error — coba fallback search sebelum skip
       const fallback = await tryFallbackSearch(client, player, track);
       if (fallback) {
-        logger.info(`Generic error fallback found for "${track?.info?.title}" via ${fallback.source}`);
+        logger.info(`Fallback found for "${track?.info?.title}" via ${fallback.source}`);
+        // Sisipkan fallback di posisi 0; autoSkip akan memainkannya sebagai lagu berikutnya
         await player.queue.add(fallback.track, 0);
-        if (!player.playing) await player.play();
       } else {
-        if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('generic', track?.info?.title) }).catch(() => {});
-        if (player.queue.tracks.length > 0) await player.skip();
+        if (errType === 'auth') {
+          if (textChannel) await textChannel.send({ content: `⚠️ Tidak ada versi lain dari **${track?.info?.title}** yang ditemukan. Melewati...` }).catch(() => {});
+        } else {
+          if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('generic', track?.info?.title) }).catch(() => {});
+        }
+        // Tidak ada fallback — autoSkip advance ke lagu berikutnya secara otomatis
       }
     } catch (err) {
       logger.error(`trackError handler error: ${err.message}`);
@@ -259,10 +272,7 @@ async function loadLavalinkEvents(client) {
       logger.debug(`Queue ended in guild ${player.guildId}`);
       await handleAutoplay(client, player);
 
-      // Tunggu sebentar — handleAutoplay bersifat async dan mungkin baru saja menambah lagu
-      await new Promise((r) => setTimeout(r, 500));
-
-      if (player.queue.tracks.length === 0 && !player.playing) {
+      if (player.queue.tracks.length === 0) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
         const channel = client.channels.cache.get(player.textChannelId);
         if (channel) {
