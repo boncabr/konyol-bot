@@ -8,8 +8,21 @@ const logger = require('../utils/logger');
 module.exports = {
   name: 'interactionCreate',
   async execute(client, interaction) {
-    // ── Slash commands ───────────────────────────────────────────────────────
-    if (!interaction.isChatInputCommand()) return;
+    // ── Abaikan interaksi selain slash command ───────────────────────────────
+    if (!interaction.isChatInputCommand()) {
+      // Tangani autocomplete agar tidak menampilkan error di Discord
+      if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (command?.autocomplete) {
+          try {
+            await command.autocomplete(client, interaction);
+          } catch (err) {
+            logger.error(`Autocomplete error [${interaction.commandName}]: ${err.message}`);
+          }
+        }
+      }
+      return;
+    }
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -28,9 +41,8 @@ module.exports = {
       });
     }
 
-    // Matikan autoplay hanya jika user eksplisit memulai pemutaran baru atau menghentikan bot
-    const AUTOPLAY_RESET_COMMANDS = ['play', 'stop', 'leave'];
-    if (AUTOPLAY_RESET_COMMANDS.includes(interaction.commandName) && interaction.guild && getAutoplay(interaction.guild.id)) {
+    // Jika user menjalankan slash command apapun SELAIN /autoplay, matikan autoplay
+    if (interaction.commandName !== 'autoplay' && interaction.guild && getAutoplay(interaction.guild.id)) {
       setAutoplay(interaction.guild.id, false);
       logger.debug(`Autoplay dimatikan karena slash command "/${interaction.commandName}" di guild ${interaction.guild.id}`);
     }
