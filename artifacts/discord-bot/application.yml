@@ -79,11 +79,11 @@ lavalink:
       lowPass: false
     # ── v4.0.8: Non-allocating frame buffers (hemat memori server) ──
     nonAllocating: true
-    bufferDurationMs: 150
-    frameBufferDurationMs: 4000
+    bufferDurationMs: 200
+    frameBufferDurationMs: 5000
     opusEncodingQuality: 10
     resamplingQuality: HIGH
-    trackStuckThresholdMs: 8000
+    trackStuckThresholdMs: 10000
     # ── v4.0.8: Seek ghosting untuk seek yang lebih mulus ──
     useSeekGhosting: true
     youtubePlaylistLoadLimit: 6
