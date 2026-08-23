@@ -34,10 +34,10 @@ async function applyStereoDefault(player) {
   try {
     // Force 2-channel stereo output
     await player.filterManager.setChannelMix({
-      leftToLeft: 1.0,
+      leftToLeft: 85.0,
       leftToRight: 0.0,
       rightToLeft: 0.0,
-      rightToRight: 1.0,
+      rightToRight: 85.0,
     });
     logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
   } catch (e) {
