@@ -18,7 +18,9 @@ async function handleStop(client, ctx) {
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
   }
 
-  await player.destroy();
+  // Hapus judul dari voice status sebelum player dihancurkan
+await setVoiceStatus(client, guildId, player.voiceChannelId, '');
+await player.destroy();
 
   const embed = successEmbed('Stopped playback and cleared the queue.', '⏹ Stopped');
   return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
