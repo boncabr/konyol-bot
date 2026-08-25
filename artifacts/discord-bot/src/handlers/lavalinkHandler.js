@@ -69,31 +69,51 @@ async function tryFallbackSearch(client, player, track) {
 
 async function loadLavalinkEvents(client) {
   client.lavalink.on('trackStart', async (player, track) => {
-    try {
-      cacheTrack(player.guildId, track);
+  try {
+    const voiceChannel = client.channels.cache.get(player.voiceChannelId);
 
-      if (track.requester?.isAutoplay && getAutoplay(player.guildId)) {
-        updateAutoplaySeed(player.guildId, track);
-      }
+    // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
+    if (voiceChannel) {
+      const voiceEmoji = getVoiceEmoji(player.guildId);
+      const radioStation = isRadioMode(player.guildId)
+        ? getRadioStation(player.guildId)
+        : null;
 
-      const voiceChannel = client.channels.cache.get(player.voiceChannelId);
-      if (voiceChannel) {
-        const voiceEmoji = getVoiceEmoji(player.guildId);
-        const radioStation = isRadioMode(player.guildId) ? getRadioStation(player.guildId) : null;
-        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
-        const displayTitle = radioStation ? `📻 Radio: ${radioStation}` : track.info.title;
-        const displayAuthor = radioStation ? 'Radio Mode' : track.info.author;
-        const status = voiceEmoji
-          ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
-          : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
-        await setVoiceStatus(client, player.guildId, player.voiceChannelId, status);
-      }
+      const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
+      const displayTitle = radioStation
+        ? `📻 Radio: ${radioStation}`
+        : track.info.title;
+      const displayAuthor = radioStation
+        ? 'Radio Mode'
+        : track.info.author;
 
-      logger.debug(`Track started: "${track.info.title}" in guild ${player.guildId}`);
-    } catch (err) {
-      logger.error(`trackStart error: ${err.message}`);
+      const status = voiceEmoji
+        ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
+        : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
+
+      // Jangan menunggu Discord REST API selesai
+      void setVoiceStatus(
+        client,
+        player.guildId,
+        player.voiceChannelId,
+        status
+      );
     }
-  });
+
+    // Proses tambahan dilakukan setelah status dikirim
+    cacheTrack(player.guildId, track);
+
+    if (track.requester?.isAutoplay && getAutoplay(player.guildId)) {
+      updateAutoplaySeed(player.guildId, track);
+    }
+
+    logger.debug(
+      `Track started: "${track.info.title}" in guild ${player.guildId}`
+    );
+  } catch (err) {
+    logger.error(`trackStart error: ${err.message}`);
+  }
+});
 
   client.lavalink.on('trackEnd', async (player, track) => {
     try {
