@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
+const { setVoiceStatus } = require('../../music/MusicManager');
 
 async function handleStop(client, ctx) {
   const isInteraction = ctx.isChatInputCommand?.();
