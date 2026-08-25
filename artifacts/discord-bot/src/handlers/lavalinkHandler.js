@@ -304,13 +304,25 @@ async function loadLavalinkEvents(client) {
     }
   });
 
-  client.lavalink.on('playerDestroy', (player, reason) => {
-    logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
-    // Matikan autoplay saat player di-destroy (bot keluar VC via ?leave, ?stop, atau VC kosong)
-    setAutoplay(player.guildId, false);
-    // Reset emoji ke default saat bot keluar VC
-    clearVoiceEmoji(player.guildId);
-  });
+  client.lavalink.on('playerDestroy', async (player, reason) => {
+  logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
+
+  // Pastikan voice status dihapus saat player dihancurkan
+  if (player.voiceChannelId) {
+    await setVoiceStatus(
+      client,
+      player.guildId,
+      player.voiceChannelId,
+      ''
+    );
+  }
+
+  // Matikan autoplay saat player di-destroy
+  setAutoplay(player.guildId, false);
+
+  // Reset emoji ke default saat bot keluar VC
+  clearVoiceEmoji(player.guildId);
+});
 
   client.lavalink.on('playerCreate', (player) => {
     logger.debug(`Player created in guild ${player.guildId}`);
