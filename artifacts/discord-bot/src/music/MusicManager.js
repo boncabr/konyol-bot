@@ -317,7 +317,7 @@ function getCachedTracks(guildId) { return musicCacheMap.get(guildId) || []; }
 
 const AUTOPLAY_BATCH = 5; // berapa lagu yang ditambahkan setiap kali autoplay
 
-async function handleAutoplay(client, player) {
+async function fillAutoplayQueue(client, player) {
   if (!getAutoplay(player.guildId)) return;
 
   // Ambil seed — dari seedMap atau fallback ke cache terakhir
@@ -407,19 +407,6 @@ async function handleAutoplay(client, player) {
     track.requester = { ...requester };
   }
 
-  const nextTrack = tracksToAdd[0];
-
-  // Update status sebelum lagu benar-benar mulai dimainkan.
-  // Tidak menunggu event trackStart dari Lavalink.
-  if (player.voiceChannelId && nextTrack?.info) {
-    void setVoiceStatus(
-      client,
-      player.guildId,
-      player.voiceChannelId,
-      buildVoiceStatus(player, nextTrack)
-    );
-  }
-
   await player.queue.add(tracksToAdd);
 
   if (!player.playing && !player.paused) {
@@ -429,6 +416,23 @@ async function handleAutoplay(client, player) {
   logger.info(
     `Autoplay [${guildId(player)}]: +${tracksToAdd.length} lagu — seed "${seed.title}" → "${tracksToAdd[0].info.title}"`
   );
+}
+
+const autoplayInFlightMap = new Set();
+
+async function handleAutoplay(client, player) {
+  const guildId = player?.guildId;
+  if (!guildId || !getAutoplay(guildId)) return;
+
+  // Cegah trackStart dan queueEnd menjalankan pencarian autoplay bersamaan
+  if (autoplayInFlightMap.has(guildId)) return;
+  autoplayInFlightMap.add(guildId);
+
+  try {
+    return await fillAutoplayQueue(client, player);
+  } finally {
+    autoplayInFlightMap.delete(guildId);
+  }
 }
 
 function guildId(player) { return player.guildId; }
