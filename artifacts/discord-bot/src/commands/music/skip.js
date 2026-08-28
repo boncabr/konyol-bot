@@ -20,10 +20,10 @@ async function handleSkip(client, ctx) {
 
   const current = player.queue.current;
 
-  // Guard: if no next track in queue, stop playback instead of throwing RangeError
+  // Kasus 1: Jika tidak ada lagu lagi di antrean (antrean kosong)
   if (player.queue.tracks.length === 0) {
     try {
-      await player.stopPlaying(false, false);
+      await player.stopPlaying(); // Hentikan pemutaran karena antrean habis
     } catch (stopErr) {
       try { await player.queue.utils.cleanUp(); } catch (_) {}
     }
@@ -34,7 +34,9 @@ async function handleSkip(client, ctx) {
     return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
   }
 
+  // Kasus 2: Masih ada lagu di antrean
   try {
+    // Cukup panggil skip() SATU KALI saja
     await player.skip();
   } catch (err) {
     const embed = errorEmbed(`Gagal melewati lagu: ${err.message}`);
