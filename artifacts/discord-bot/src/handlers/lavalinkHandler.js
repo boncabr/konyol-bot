@@ -300,7 +300,9 @@ async function loadLavalinkEvents(client) {
       logger.debug(`Queue ended in guild ${player.guildId}`);
       await handleAutoplay(client, player);
 
-      if (player.queue.tracks.length === 0) {
+      // Jangan hapus status saat autoplay masih aktif.
+      // Prefetch dapat berjalan bersamaan dengan event queueEnd.
+      if (player.queue.tracks.length === 0 && !getAutoplay(player.guildId)) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
         const channel = client.channels.cache.get(player.textChannelId);
         if (channel) {
