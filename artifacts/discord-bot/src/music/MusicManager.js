@@ -183,14 +183,52 @@ async function play(player, tracks) {
 
 // ─── Voice Status ────────────────────────────────────────────────────────────
 
+const voiceStatusCache = new Map();
+
 async function setVoiceStatus(client, guildId, channelId, status) {
+  const nextStatus = status || '';
+  const cacheKey = `${guildId}:${channelId}`;
+
+  // Jangan kirim request jika statusnya sama
+  if (voiceStatusCache.get(cacheKey) === nextStatus) {
+    return;
+  }
+
+  voiceStatusCache.set(cacheKey, nextStatus);
+
   try {
     await client.rest.put(`/channels/${channelId}/voice-status`, {
-      body: { status: status || '' },
+      body: { status: nextStatus },
     });
   } catch (err) {
+    // Hapus cache hanya jika request yang gagal masih merupakan status terbaru
+    if (voiceStatusCache.get(cacheKey) === nextStatus) {
+      voiceStatusCache.delete(cacheKey);
+    }
+
     logger.debug(`Could not set voice status: ${err.message}`);
   }
+}
+
+function buildVoiceStatus(player, track) {
+  if (!track?.info) return '';
+
+  const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
+  const voiceEmoji = getVoiceEmoji(player.guildId);
+
+  const radioStation = isRadioMode(player.guildId)
+    ? getRadioStation(player.guildId)
+    : null;
+
+  const displayTitle = radioStation
+    ? `📻 Radio: ${radioStation}`
+    : track.info.title;
+
+  const displayAuthor = radioStation
+    ? 'Radio Mode'
+    : track.info.author;
+
+  return `**${voiceEmoji || DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
 }
 
 // ─── Autoplay ─────────────────────────────────────────────────────────────────
@@ -369,8 +407,24 @@ async function handleAutoplay(client, player) {
     track.requester = { ...requester };
   }
 
+  const nextTrack = tracksToAdd[0];
+
+  // Update status sebelum lagu benar-benar mulai dimainkan.
+  // Tidak menunggu event trackStart dari Lavalink.
+  if (player.voiceChannelId && nextTrack?.info) {
+    void setVoiceStatus(
+      client,
+      player.guildId,
+      player.voiceChannelId,
+      buildVoiceStatus(player, nextTrack)
+    );
+  }
+
   await player.queue.add(tracksToAdd);
-  if (!player.playing) await player.play();
+
+  if (!player.playing && !player.paused) {
+    await player.play();
+  }
 
   logger.info(
     `Autoplay [${guildId(player)}]: +${tracksToAdd.length} lagu — seed "${seed.title}" → "${tracksToAdd[0].info.title}"`
