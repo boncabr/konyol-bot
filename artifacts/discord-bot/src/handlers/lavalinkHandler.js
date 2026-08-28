@@ -110,6 +110,14 @@ async function loadLavalinkEvents(client) {
     logger.debug(
       `Track started: "${track.info.title}" in guild ${player.guildId}`
     );
+
+    // Isi antrean lebih awal agar pencarian tidak menunggu queueEnd.
+    // Dengan begitu lagu berikutnya sudah siap saat trackStart berikutnya terjadi.
+    if (getAutoplay(player.guildId) && (player.queue?.tracks?.length ?? 0) <= 1) {
+      void handleAutoplay(client, player).catch((err) => {
+        logger.warn(`Autoplay prefetch gagal: ${err.message}`);
+      });
+    }
   } catch (err) {
     logger.error(`trackStart error: ${err.message}`);
   }
