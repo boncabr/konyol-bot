@@ -34,10 +34,10 @@ async function applyStereoDefault(player) {
   try {
     // Force 2-channel stereo output
     await player.filterManager.setChannelMix({
-      leftToLeft: 1.0,
+      leftToLeft: 85.0,
       leftToRight: 0.0,
       rightToLeft: 0.0,
-      rightToRight: 1.0,
+      rightToRight: 85.0,
     });
     logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
   } catch (e) {
@@ -183,14 +183,83 @@ async function play(player, tracks) {
 
 // ─── Voice Status ────────────────────────────────────────────────────────────
 
+const voiceStatusCache = new Map();
+
+// Menandai disconnect yang memang diminta melalui command stop/leave.
+// Ini mencegah voiceStateUpdate melakukan auto-reconnect.
+const intentionalDisconnectMap = new Set();
+
+function markIntentionalDisconnect(guildId) {
+  intentionalDisconnectMap.add(guildId);
+  setTimeout(() => intentionalDisconnectMap.delete(guildId), 15000);
+}
+
+function consumeIntentionalDisconnect(guildId) {
+  if (!intentionalDisconnectMap.has(guildId)) return false;
+  intentionalDisconnectMap.delete(guildId);
+  return true;
+}
+
 async function setVoiceStatus(client, guildId, channelId, status) {
+  const nextStatus = status || '';
+  const cacheKey = `${guildId}:${channelId}`;
+
+  // Jangan kirim request jika statusnya sama
+  if (voiceStatusCache.get(cacheKey) === nextStatus) {
+    return;
+  }
+
+  voiceStatusCache.set(cacheKey, nextStatus);
+
   try {
     await client.rest.put(`/channels/${channelId}/voice-status`, {
-      body: { status: status || '' },
+      body: { status: nextStatus },
     });
   } catch (err) {
+    // Hapus cache hanya jika request yang gagal masih merupakan status terbaru
+    if (voiceStatusCache.get(cacheKey) === nextStatus) {
+      voiceStatusCache.delete(cacheKey);
+    }
+
     logger.debug(`Could not set voice status: ${err.message}`);
   }
+}
+
+// Selalu kirim request kosong ketika player keluar, tanpa terhalang cache.
+async function clearVoiceStatus(client, guildId, channelId) {
+  if (!channelId) return;
+
+  const cacheKey = `${guildId}:${channelId}`;
+  voiceStatusCache.delete(cacheKey);
+
+  try {
+    await client.rest.put(`/channels/${channelId}/voice-status`, {
+      body: { status: '' },
+    });
+  } catch (err) {
+    logger.debug(`Could not clear voice status: ${err.message}`);
+  }
+}
+
+function buildVoiceStatus(player, track) {
+  if (!track?.info) return '';
+
+  const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
+  const voiceEmoji = getVoiceEmoji(player.guildId);
+
+  const radioStation = isRadioMode(player.guildId)
+    ? getRadioStation(player.guildId)
+    : null;
+
+  const displayTitle = radioStation
+    ? `📻 Radio: ${radioStation}`
+    : track.info.title;
+
+  const displayAuthor = radioStation
+    ? 'Radio Mode'
+    : track.info.author;
+
+  return `**${voiceEmoji || DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
 }
 
 // ─── Autoplay ─────────────────────────────────────────────────────────────────
@@ -279,7 +348,7 @@ function getCachedTracks(guildId) { return musicCacheMap.get(guildId) || []; }
 
 const AUTOPLAY_BATCH = 5; // berapa lagu yang ditambahkan setiap kali autoplay
 
-async function handleAutoplay(client, player) {
+async function fillAutoplayQueue(client, player) {
   if (!getAutoplay(player.guildId)) return;
 
   // Ambil seed — dari seedMap atau fallback ke cache terakhir
@@ -370,11 +439,31 @@ async function handleAutoplay(client, player) {
   }
 
   await player.queue.add(tracksToAdd);
-  if (!player.playing) await player.play();
+
+  if (!player.playing && !player.paused) {
+    await player.play();
+  }
 
   logger.info(
     `Autoplay [${guildId(player)}]: +${tracksToAdd.length} lagu — seed "${seed.title}" → "${tracksToAdd[0].info.title}"`
   );
+}
+
+const autoplayInFlightMap = new Set();
+
+async function handleAutoplay(client, player) {
+  const guildId = player?.guildId;
+  if (!guildId || !getAutoplay(guildId)) return;
+
+  // Cegah trackStart dan queueEnd menjalankan pencarian autoplay bersamaan
+  if (autoplayInFlightMap.has(guildId)) return;
+  autoplayInFlightMap.add(guildId);
+
+  try {
+    return await fillAutoplayQueue(client, player);
+  } finally {
+    autoplayInFlightMap.delete(guildId);
+  }
 }
 
 function guildId(player) { return player.guildId; }
@@ -408,6 +497,9 @@ module.exports = {
   search,
   play,
   setVoiceStatus,
+  clearVoiceStatus,
+  markIntentionalDisconnect,
+  consumeIntentionalDisconnect,
   setAutoplay,
   getAutoplay,
   setSeed,
