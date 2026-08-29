@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { isRadioMode, setAutoplay, clearVoiceEmoji, setVoiceStatus } = require('../music/MusicManager');
+const { isRadioMode, setAutoplay, clearVoiceEmoji, setVoiceStatus, consumeIntentionalDisconnect } = require('../music/MusicManager');
 
 module.exports = {
   name: 'voiceStateUpdate',
@@ -13,6 +13,11 @@ module.exports = {
 
       // ── Bot was force-disconnected from VC ──────────────────────────────────
       if (oldState.id === botId && !newState.channelId) {
+        if (consumeIntentionalDisconnect(guildId)) {
+          logger.info(`Bot left voice intentionally in guild ${guildId} — skipping auto-reconnect`);
+          return;
+        }
+
         logger.warn(`Bot was disconnected from voice in guild ${guildId} — scheduling reconnect`);
 
         // Reset semua filter EQ/efek ke default sebelum reconnect
@@ -97,6 +102,3 @@ module.exports = {
       }
     } catch (err) {
       logger.error(`voiceStateUpdate error: ${err.message}`);
-    }
-  },
-};
