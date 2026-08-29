@@ -210,6 +210,22 @@ async function setVoiceStatus(client, guildId, channelId, status) {
   }
 }
 
+// Selalu kirim request kosong ketika player keluar, tanpa terhalang cache.
+async function clearVoiceStatus(client, guildId, channelId) {
+  if (!channelId) return;
+
+  const cacheKey = `${guildId}:${channelId}`;
+  voiceStatusCache.delete(cacheKey);
+
+  try {
+    await client.rest.put(`/channels/${channelId}/voice-status`, {
+      body: { status: '' },
+    });
+  } catch (err) {
+    logger.debug(`Could not clear voice status: ${err.message}`);
+  }
+}
+
 function buildVoiceStatus(player, track) {
   if (!track?.info) return '';
 
@@ -466,6 +482,7 @@ module.exports = {
   search,
   play,
   setVoiceStatus,
+  clearVoiceStatus,
   setAutoplay,
   getAutoplay,
   setSeed,
