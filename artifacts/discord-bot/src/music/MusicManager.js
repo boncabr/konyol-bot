@@ -185,6 +185,25 @@ async function play(player, tracks) {
 
 const voiceStatusCache = new Map();
 
+const voiceStatusQueue = new Map();
+
+// Menjalankan update status secara berurutan per voice channel.
+function enqueueVoiceStatusUpdate(cacheKey, operation) {
+  const previous = voiceStatusQueue.get(cacheKey) || Promise.resolve();
+
+  const next = previous
+    .catch(() => {})
+    .then(operation);
+
+  voiceStatusQueue.set(cacheKey, next);
+
+  return next.finally(() => {
+    if (voiceStatusQueue.get(cacheKey) === next) {
+      voiceStatusQueue.delete(cacheKey);
+    }
+  });
+}
+
 // Menandai disconnect yang memang diminta melalui command stop/leave.
 // Ini mencegah voiceStateUpdate melakukan auto-reconnect.
 const intentionalDisconnectMap = new Set();
@@ -201,44 +220,90 @@ function consumeIntentionalDisconnect(guildId) {
 }
 
 async function setVoiceStatus(client, guildId, channelId, status) {
+  if (!channelId) return;
+
   const nextStatus = status || '';
   const cacheKey = `${guildId}:${channelId}`;
 
-  // Jangan kirim request jika statusnya sama
-  if (voiceStatusCache.get(cacheKey) === nextStatus) {
-    return;
-  }
-
-  voiceStatusCache.set(cacheKey, nextStatus);
-
-  try {
-    await client.rest.put(`/channels/${channelId}/voice-status`, {
-      body: { status: nextStatus },
-    });
-  } catch (err) {
-    // Hapus cache hanya jika request yang gagal masih merupakan status terbaru
+  return enqueueVoiceStatusUpdate(cacheKey, async () => {
+    // Jangan kirim request jika statusnya sama.
     if (voiceStatusCache.get(cacheKey) === nextStatus) {
-      voiceStatusCache.delete(cacheKey);
+      return;
     }
 
-    logger.debug(`Could not set voice status: ${err.message}`);
-  }
+    voiceStatusCache.set(cacheKey, nextStatus);
+
+    try {
+      await client.rest.put(`/channels/${channelId}/voice-status`, {
+        body: { status: nextStatus },
+      });
+    } catch (err) {
+      if (voiceStatusCache.get(cacheKey) === nextStatus) {
+        voiceStatusCache.delete(cacheKey);
+      }
+
+      logger.debug(`Could not set voice status: ${err.message}`);
+    }
+  });
 }
 
-// Selalu kirim request kosong ketika player keluar, tanpa terhalang cache.
+// Hapus status lama lalu tampilkan status lagu baru.
+async function replaceVoiceStatus(client, guildId, channelId, status) {
+  if (!channelId) return;
+
+  const nextStatus = status || '';
+  const cacheKey = `${guildId}:${channelId}`;
+
+  return enqueueVoiceStatusUpdate(cacheKey, async () => {
+    voiceStatusCache.delete(cacheKey);
+
+    try {
+      await client.rest.put(`/channels/${channelId}/voice-status`, {
+        body: { status: '' },
+      });
+    } catch (err) {
+      logger.debug(
+        `Could not clear voice status before replacement: ${err.message}`
+      );
+    }
+
+    if (!nextStatus) return;
+
+    voiceStatusCache.set(cacheKey, nextStatus);
+
+    try {
+      await client.rest.put(`/channels/${channelId}/voice-status`, {
+        body: { status: nextStatus },
+      });
+    } catch (err) {
+      if (voiceStatusCache.get(cacheKey) === nextStatus) {
+        voiceStatusCache.delete(cacheKey);
+      }
+
+      logger.debug(
+        `Could not set replacement voice status: ${err.message}`
+      );
+    }
+  });
+}
+
+// Selalu kirim request kosong ketika player keluar.
 async function clearVoiceStatus(client, guildId, channelId) {
   if (!channelId) return;
 
   const cacheKey = `${guildId}:${channelId}`;
-  voiceStatusCache.delete(cacheKey);
 
-  try {
-    await client.rest.put(`/channels/${channelId}/voice-status`, {
-      body: { status: '' },
-    });
-  } catch (err) {
-    logger.debug(`Could not clear voice status: ${err.message}`);
-  }
+  return enqueueVoiceStatusUpdate(cacheKey, async () => {
+    voiceStatusCache.delete(cacheKey);
+
+    try {
+      await client.rest.put(`/channels/${channelId}/voice-status`, {
+        body: { status: '' },
+      });
+    } catch (err) {
+      logger.debug(`Could not clear voice status: ${err.message}`);
+    }
+  });
 }
 
 function buildVoiceStatus(player, track) {
@@ -497,6 +562,7 @@ module.exports = {
   search,
   play,
   setVoiceStatus,
+  replaceVoiceStatus,
   clearVoiceStatus,
   markIntentionalDisconnect,
   consumeIntentionalDisconnect,
