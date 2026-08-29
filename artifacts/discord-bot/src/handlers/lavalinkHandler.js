@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, replaceVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const { setVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
