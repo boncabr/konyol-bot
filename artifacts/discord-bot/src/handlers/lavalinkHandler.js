@@ -70,10 +70,10 @@ async function tryFallbackSearch(client, player, track) {
 async function loadLavalinkEvents(client) {
   client.lavalink.on('trackStart', async (player, track) => {
   try {
-    const voiceChannel = client.channels.cache.get(player.voiceChannelId);
+    const voiceChannelId = player.voiceChannelId;
 
     // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
-    if (voiceChannel) {
+    if (voiceChannelId) {
       const voiceEmoji = getVoiceEmoji(player.guildId);
       const radioStation = isRadioMode(player.guildId)
         ? getRadioStation(player.guildId)
@@ -96,8 +96,9 @@ async function loadLavalinkEvents(client) {
 void setVoiceStatus(
   client,
   player.guildId,
-  player.voiceChannelId,
-  status
+  voiceChannelId,
+  status,
+  { force: true }
 );
     }
 
