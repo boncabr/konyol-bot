@@ -185,6 +185,21 @@ async function play(player, tracks) {
 
 const voiceStatusCache = new Map();
 
+// Menandai disconnect yang memang diminta melalui command stop/leave.
+// Ini mencegah voiceStateUpdate melakukan auto-reconnect.
+const intentionalDisconnectMap = new Set();
+
+function markIntentionalDisconnect(guildId) {
+  intentionalDisconnectMap.add(guildId);
+  setTimeout(() => intentionalDisconnectMap.delete(guildId), 15000);
+}
+
+function consumeIntentionalDisconnect(guildId) {
+  if (!intentionalDisconnectMap.has(guildId)) return false;
+  intentionalDisconnectMap.delete(guildId);
+  return true;
+}
+
 async function setVoiceStatus(client, guildId, channelId, status) {
   const nextStatus = status || '';
   const cacheKey = `${guildId}:${channelId}`;
@@ -483,6 +498,8 @@ module.exports = {
   play,
   setVoiceStatus,
   clearVoiceStatus,
+  markIntentionalDisconnect,
+  consumeIntentionalDisconnect,
   setAutoplay,
   getAutoplay,
   setSeed,
