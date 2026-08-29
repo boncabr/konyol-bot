@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const { setVoiceStatus, replaceVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
@@ -91,8 +91,8 @@ async function loadLavalinkEvents(client) {
         ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
         : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
 
-      // Jangan menunggu Discord REST API selesai
-      void setVoiceStatus(
+      // Hapus status lama lalu pasang status lagu baru.
+      await replaceVoiceStatus(
         client,
         player.guildId,
         player.voiceChannelId,
