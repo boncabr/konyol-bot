@@ -1,12 +1,13 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
+const { clearVoiceStatus } = require('../../music/MusicManager');
 
 async function handleStop(client, ctx) {
   const isInteraction = ctx.isChatInputCommand?.();
   const guildId = ctx.guild.id;
 
   const player = client.lavalink.getPlayer(guildId);
-  if (!player || !player.playing) {
+  if (!player || (!player.playing && !player.paused)) {
     const embed = errorEmbed('There is nothing currently playing.');
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
   }
@@ -16,10 +17,13 @@ async function handleStop(client, ctx) {
     const embed = errorEmbed('You must be in the same voice channel as the bot.');
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
   }
-
+  // Simpan channel ID dan hapus status sebelum player dihancurkan.
+  // Setelah destroy(), voiceChannelId bisa sudah tidak tersedia.
+  const channelId = player.voiceChannelId;
+  await clearVoiceStatus(client, guildId, channelId);
   await player.destroy();
 
-  const embed = successEmbed('Stopped playback and cleared the queue.', '⏹ Stopped');
+  const embed = successEmbed('Stopped playback and cleared the queue.', 'â¹ Stopped');
   return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
 }
 
