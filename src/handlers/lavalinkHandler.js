@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const { setVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
@@ -69,31 +69,61 @@ async function tryFallbackSearch(client, player, track) {
 
 async function loadLavalinkEvents(client) {
   client.lavalink.on('trackStart', async (player, track) => {
-    try {
-      cacheTrack(player.guildId, track);
+  try {
+    const voiceChannelId = player.voiceChannelId;
 
-      if (track.requester?.isAutoplay && getAutoplay(player.guildId)) {
-        updateAutoplaySeed(player.guildId, track);
-      }
+    // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
+    if (voiceChannelId) {
+      const voiceEmoji = getVoiceEmoji(player.guildId);
+      const radioStation = isRadioMode(player.guildId)
+        ? getRadioStation(player.guildId)
+        : null;
 
-      const voiceChannel = client.channels.cache.get(player.voiceChannelId);
-      if (voiceChannel) {
-        const voiceEmoji = getVoiceEmoji(player.guildId);
-        const radioStation = isRadioMode(player.guildId) ? getRadioStation(player.guildId) : null;
-        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
-        const displayTitle = radioStation ? `📻 Radio: ${radioStation}` : track.info.title;
-        const displayAuthor = radioStation ? 'Radio Mode' : track.info.author;
-        const status = voiceEmoji
-          ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
-          : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
-        await setVoiceStatus(client, player.guildId, player.voiceChannelId, status);
-      }
+      const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
+      const displayTitle = radioStation
+        ? `📻 Radio: ${radioStation}`
+        : track.info.title;
+      const displayAuthor = radioStation
+        ? 'Radio Mode'
+        : track.info.author;
 
-      logger.debug(`Track started: "${track.info.title}" in guild ${player.guildId}`);
-    } catch (err) {
-      logger.error(`trackStart error: ${err.message}`);
+      const status = voiceEmoji
+        ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
+        : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
+
+// Kirim status baru langsung tanpa menghapus status terlebih dahulu.
+// Discord akan mengganti status lama dengan status track terbaru.
+void setVoiceStatus(
+  client,
+  player.guildId,
+  voiceChannelId,
+  status,
+  { force: true }
+);
     }
-  });
+
+    // Proses tambahan dilakukan setelah status dikirim
+    cacheTrack(player.guildId, track);
+
+    if (track.requester?.isAutoplay && getAutoplay(player.guildId)) {
+      updateAutoplaySeed(player.guildId, track);
+    }
+
+    logger.debug(
+      `Track started: "${track.info.title}" in guild ${player.guildId}`
+    );
+
+    // Isi antrean lebih awal agar pencarian tidak menunggu queueEnd.
+    // Dengan begitu lagu berikutnya sudah siap saat trackStart berikutnya terjadi.
+    if (getAutoplay(player.guildId) && (player.queue?.tracks?.length ?? 0) <= 1) {
+      void handleAutoplay(client, player).catch((err) => {
+        logger.warn(`Autoplay prefetch gagal: ${err.message}`);
+      });
+    }
+  } catch (err) {
+    logger.error(`trackStart error: ${err.message}`);
+  }
+});
 
   client.lavalink.on('trackEnd', async (player, track) => {
     try {
@@ -272,7 +302,9 @@ async function loadLavalinkEvents(client) {
       logger.debug(`Queue ended in guild ${player.guildId}`);
       await handleAutoplay(client, player);
 
-      if (player.queue.tracks.length === 0) {
+      // Jangan hapus status saat autoplay masih aktif.
+      // Prefetch dapat berjalan bersamaan dengan event queueEnd.
+      if (player.queue.tracks.length === 0 && !getAutoplay(player.guildId)) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
         const channel = client.channels.cache.get(player.textChannelId);
         if (channel) {
@@ -284,13 +316,25 @@ async function loadLavalinkEvents(client) {
     }
   });
 
-  client.lavalink.on('playerDestroy', (player, reason) => {
-    logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
-    // Matikan autoplay saat player di-destroy (bot keluar VC via ?leave, ?stop, atau VC kosong)
-    setAutoplay(player.guildId, false);
-    // Reset emoji ke default saat bot keluar VC
-    clearVoiceEmoji(player.guildId);
-  });
+  client.lavalink.on('playerDestroy', async (player, reason) => {
+  logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
+
+  // Fallback jika player dihancurkan bukan melalui command stop/leave.
+  const destroyedChannelId = player.voiceChannelId;
+  if (destroyedChannelId) {
+    await clearVoiceStatus(
+      client,
+      player.guildId,
+      destroyedChannelId
+    );
+  }
+
+  // Matikan autoplay saat player di-destroy
+  setAutoplay(player.guildId, false);
+
+  // Reset emoji ke default saat bot keluar VC
+  clearVoiceEmoji(player.guildId);
+});
 
   client.lavalink.on('playerCreate', (player) => {
     logger.debug(`Player created in guild ${player.guildId}`);
