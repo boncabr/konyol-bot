@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
-const { clearVoiceStatus } = require('../../music/MusicManager');
+const { clearVoiceStatus, markIntentionalDisconnect } = require('../../music/MusicManager');
 
 async function handleStop(client, ctx) {
   const isInteraction = ctx.isChatInputCommand?.();
@@ -20,6 +20,7 @@ async function handleStop(client, ctx) {
   // Simpan channel ID dan hapus status sebelum player dihancurkan.
   // Setelah destroy(), voiceChannelId bisa sudah tidak tersedia.
   const channelId = player.voiceChannelId;
+  markIntentionalDisconnect(guildId);
   await clearVoiceStatus(client, guildId, channelId);
   await player.destroy();
 
@@ -37,4 +38,3 @@ module.exports = {
   async execute(client, ctx) {
     await handleStop(client, ctx);
   },
-};
