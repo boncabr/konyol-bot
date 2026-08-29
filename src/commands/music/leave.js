@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
+const { clearVoiceStatus } = require('../../music/MusicManager');
 
 async function handleLeave(client, ctx) {
   const isInteraction = ctx.isChatInputCommand?.();
@@ -17,10 +18,12 @@ async function handleLeave(client, ctx) {
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
   }
 
+  // Hapus status sebelum player dihancurkan karena channel ID bisa hilang setelah destroy().
   const channelId = player.voiceChannelId;
+  await clearVoiceStatus(client, guildId, channelId);
   await player.destroy();
 
-  const embed = successEmbed(`Left <#${channelId}> and cleared the queue.`, '👋 Left');
+  const embed = successEmbed(`Left <#${channelId}> and cleared the queue.`, 'ð Left');
   return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
 }
 
