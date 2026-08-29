@@ -1,5 +1,5 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const { setVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
@@ -317,13 +317,13 @@ async function loadLavalinkEvents(client) {
   client.lavalink.on('playerDestroy', async (player, reason) => {
   logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
 
-  // Pastikan voice status dihapus saat player dihancurkan
-  if (player.voiceChannelId) {
-    await setVoiceStatus(
+  // Fallback jika player dihancurkan bukan melalui command stop/leave.
+  const destroyedChannelId = player.voiceChannelId;
+  if (destroyedChannelId) {
+    await clearVoiceStatus(
       client,
       player.guildId,
-      player.voiceChannelId,
-      ''
+      destroyedChannelId
     );
   }
 
