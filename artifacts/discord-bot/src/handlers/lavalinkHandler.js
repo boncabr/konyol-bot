@@ -91,13 +91,14 @@ async function loadLavalinkEvents(client) {
         ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
         : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
 
-      // Hapus status lama lalu pasang status lagu baru.
-      await replaceVoiceStatus(
-        client,
-        player.guildId,
-        player.voiceChannelId,
-        status
-      );
+// Kirim status baru langsung tanpa menghapus status terlebih dahulu.
+// Discord akan mengganti status lama dengan status track terbaru.
+void setVoiceStatus(
+  client,
+  player.guildId,
+  player.voiceChannelId,
+  status
+);
     }
 
     // Proses tambahan dilakukan setelah status dikirim
