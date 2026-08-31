@@ -219,46 +219,30 @@ function consumeIntentionalDisconnect(guildId) {
   return true;
 }
 
-async function setVoiceStatus(
-  client,
-  guildId,
-  channelId,
-  status,
-  options = {}
-) {
+async function setVoiceStatus(client, guildId, channelId, status) {
   if (!channelId) return;
 
   const nextStatus = status || '';
-  const force = options.force === true;
   const cacheKey = `${guildId}:${channelId}`;
 
   return enqueueVoiceStatusUpdate(cacheKey, async () => {
-    // Cache lokal bukan sumber utama karena Discord bisa masih menampilkan
-    // status lama. Untuk trackStart, gunakan force: true.
-    if (!force && voiceStatusCache.get(cacheKey) === nextStatus) {
+    // Jangan kirim request jika statusnya sama.
+    if (voiceStatusCache.get(cacheKey) === nextStatus) {
       return;
     }
 
     voiceStatusCache.set(cacheKey, nextStatus);
 
-    logger.info(
-      `[VoiceStatus] Mengirim status channel ${channelId}: ${nextStatus}`
-    );
-
     try {
       await client.rest.put(`/channels/${channelId}/voice-status`, {
-        body: {
-          status: nextStatus,
-        },
+        body: { status: nextStatus },
       });
     } catch (err) {
       if (voiceStatusCache.get(cacheKey) === nextStatus) {
         voiceStatusCache.delete(cacheKey);
       }
 
-      logger.warn(
-        `[VoiceStatus] Gagal memperbarui channel ${channelId}: ${err.message}`
-      );
+      logger.debug(`Could not set voice status: ${err.message}`);
     }
   });
 }
