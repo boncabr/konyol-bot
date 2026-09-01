@@ -173,11 +173,33 @@ async function search(player, query, requester) {
   return result;
 }
 
-async function play(player, tracks) {
+async function play(player, tracks, options = {}) {
   if (!tracks || tracks.length === 0) return;
-  await player.queue.add(tracks);
+
+  const priority = options.priority === true;
+  const isCurrentlyPlaying = player.playing || player.paused;
+
+  if (priority && isCurrentlyPlaying) {
+    // Hapus lagu autoplay yang masih menunggu,
+    // supaya permintaan user menjadi lagu berikutnya.
+    for (let i = player.queue.tracks.length - 1; i >= 0; i--) {
+      const queuedTrack = player.queue.tracks[i];
+
+      if (queuedTrack?.requester?.isAutoplay) {
+        await player.queue.splice(i, 1);
+      }
+    }
+
+    // Masukkan lagu user ke posisi paling depan antrean.
+    await player.queue.add(tracks, 0);
+  } else {
+    await player.queue.add(tracks);
+  }
+
   if (!player.playing && !player.paused) {
-    await player.play({ volume: player.volume || config.music.defaultVolume });
+    await player.play({
+      volume: player.volume || config.music.defaultVolume,
+    });
   }
 }
 
