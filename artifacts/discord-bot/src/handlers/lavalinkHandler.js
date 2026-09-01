@@ -91,15 +91,23 @@ async function loadLavalinkEvents(client) {
         ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
         : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
 
-// Kirim status baru langsung tanpa menghapus status terlebih dahulu.
-// Discord akan mengganti status lama dengan status track terbaru.
-void setVoiceStatus(
-  client,
-  player.guildId,
-  voiceChannelId,
-  status,
-  { force: true }
-);
+      // Log ini memastikan event trackStart menerima lagu yang benar
+      // sebelum status voice dikirim ke Discord.
+      logger.info(
+        `[TrackStart] guild=${player.guildId} ` +
+        `channel=${voiceChannelId} ` +
+        `title="${track.info.title}"`
+      );
+
+      // Kirim status baru langsung tanpa menghapus status terlebih dahulu.
+      // Discord akan mengganti status lama dengan status track terbaru.
+      void setVoiceStatus(
+        client,
+        player.guildId,
+        voiceChannelId,
+        status,
+        { force: true }
+      );
     }
 
     // Proses tambahan dilakukan setelah status dikirim
