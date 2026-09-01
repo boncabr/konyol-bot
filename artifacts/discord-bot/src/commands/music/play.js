@@ -69,10 +69,11 @@ async function handlePlay(client, ctx, queryStr) {
       description = `🎵 Menambahkan [${track.info.title}](${track.info.uri}) - ${track.info.author}${platformTag} ke antrean.`;
     }
 
-    await play(player, tracks);
+    // Set seed lebih dahulu agar autoplay berikutnya mengikuti lagu user
+setSeed(ctx.guild.id, tracks[0]);
 
-    // Set seed ke lagu pertama yang diminta user — autoplay akan mengikuti dari sini
-    setSeed(ctx.guild.id, tracks[0]);
+// Jadikan permintaan user sebagai prioritas di antrean
+await play(player, tracks, { priority: true });
 
     const isNowPlaying = !player.queue.previous && player.queue.tracks.length <= tracks.length;
     const embed = createEmbed({
