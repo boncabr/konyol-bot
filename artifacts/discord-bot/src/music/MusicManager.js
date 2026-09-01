@@ -241,17 +241,98 @@ function consumeIntentionalDisconnect(guildId) {
   return true;
 }
 
-async function setVoiceStatus(client, guildId, channelId, status) {
-  if (!channelId) return;
+const latestVoiceStatusMap = new Map();
+const voiceStatusWorkerMap = new Map();
+
+function setVoiceStatus(
+  client,
+  guildId,
+  channelId,
+  status,
+  options = {}
+) {
+  if (!channelId) return Promise.resolve();
 
   const nextStatus = status || '';
+  const force = options.force === true;
   const cacheKey = `${guildId}:${channelId}`;
 
-  return enqueueVoiceStatusUpdate(cacheKey, async () => {
-    // Jangan kirim request jika statusnya sama.
-    if (voiceStatusCache.get(cacheKey) === nextStatus) {
-      return;
+  // Selalu timpa status pending dengan status paling baru.
+  latestVoiceStatusMap.set(cacheKey, {
+    client,
+    guildId,
+    channelId,
+    status: nextStatus,
+    force,
+  });
+
+  // Jika worker sudah berjalan, worker akan mengambil status terbaru
+  // setelah request yang sedang berjalan selesai.
+  if (voiceStatusWorkerMap.has(cacheKey)) {
+    return voiceStatusWorkerMap.get(cacheKey);
+  }
+
+  const worker = (async () => {
+    try {
+      while (latestVoiceStatusMap.has(cacheKey)) {
+        const latest = latestVoiceStatusMap.get(cacheKey);
+        latestVoiceStatusMap.delete(cacheKey);
+
+        const {
+          client: latestClient,
+          channelId: latestChannelId,
+          status: latestStatus,
+          force: latestForce,
+        } = latest;
+
+        // Untuk trackStart gunakan force:true agar cache lokal
+        // tidak mencegah pengiriman status baru.
+        if (
+          !latestForce &&
+          voiceStatusCache.get(cacheKey) === latestStatus
+        ) {
+          continue;
+        }
+
+        voiceStatusCache.set(cacheKey, latestStatus);
+
+        logger.info(
+          `[VoiceStatus] Mengirim status terbaru guild=${guildId} ` +
+          `channel=${latestChannelId}: ${latestStatus}`
+        );
+
+        try {
+          const response = await latestClient.rest.put(
+            `/channels/${latestChannelId}/voice-status`,
+            {
+              body: {
+                status: latestStatus,
+              },
+            }
+          );
+
+          logger.info(
+            `[VoiceStatus] Request berhasil channel=${latestChannelId} ` +
+            `status=${response?.status || 204}`
+          );
+        } catch (err) {
+          if (voiceStatusCache.get(cacheKey) === latestStatus) {
+            voiceStatusCache.delete(cacheKey);
+          }
+
+          logger.warn(
+            `[VoiceStatus] Gagal channel=${latestChannelId}: ${err.message}`
+          );
+        }
+      }
+    } finally {
+      voiceStatusWorkerMap.delete(cacheKey);
     }
+  })();
+
+  voiceStatusWorkerMap.set(cacheKey, worker);
+  return worker;
+}
 
     voiceStatusCache.set(cacheKey, nextStatus);
 
