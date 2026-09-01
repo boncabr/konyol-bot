@@ -177,9 +177,12 @@ async function play(player, tracks, options = {}) {
   if (!tracks || tracks.length === 0) return;
 
   const priority = options.priority === true;
-  const isCurrentlyPlaying = player.playing || player.paused;
 
-  if (priority && isCurrentlyPlaying) {
+  if (priority) {
+    // Jangan bergantung pada player.playing/player.paused.
+    // Saat autoplay sedang berpindah track, nilainya bisa false
+    // walaupun audio masih terdengar.
+
     // Hapus lagu autoplay yang masih menunggu,
     // supaya permintaan user menjadi lagu berikutnya.
     for (let i = player.queue.tracks.length - 1; i >= 0; i--) {
