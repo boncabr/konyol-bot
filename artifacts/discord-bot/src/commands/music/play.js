@@ -62,23 +62,26 @@ async function handlePlay(client, ctx, queryStr) {
     if (result.loadType === 'playlist') {
       tracks = result.tracks;
       const playlistName = result.playlist?.name || 'Playlist';
-      description = `📋 Menambahkan **${tracks.length}** lagu dari playlist [${playlistName}](${query})${platformTag} ke antrean.`;
+      description = `ð Menambahkan **${tracks.length}** lagu dari playlist [${playlistName}](${query})${platformTag} ke antrean.`;
     } else {
       tracks = [result.tracks[0]];
       const track = tracks[0];
-      description = `🎵 Menambahkan [${track.info.title}](${track.info.uri}) - ${track.info.author}${platformTag} ke antrean.`;
+      description = `ðµ Menambahkan [${track.info.title}](${track.info.uri}) - ${track.info.author}${platformTag} ke antrean.`;
     }
 
-    // Set seed lebih dahulu agar autoplay berikutnya mengikuti lagu user
-setSeed(ctx.guild.id, tracks[0]);
+    // Set seed lebih dahulu agar autoplay berikutnya mengikuti lagu user.
+    // Ini juga membatalkan hasil pencarian autoplay lama yang masih berjalan.
+    setSeed(ctx.guild.id, tracks[0]);
 
-// Jadikan permintaan user sebagai prioritas di antrean
-await play(player, tracks, { priority: true });
+    // Jadikan permintaan user sebagai prioritas di antrean.
+    // MusicManager akan menghapus lagu autoplay yang masih menunggu
+    // lalu memasukkan lagu user ke posisi pertama.
+    await play(player, tracks, { priority: true });
 
     const isNowPlaying = !player.queue.previous && player.queue.tracks.length <= tracks.length;
     const embed = createEmbed({
       color: config.colors.success,
-      title: isNowPlaying ? '▶️ Sekarang Diputar' : '✅ Ditambahkan ke Antrean',
+      title: isNowPlaying ? 'â¶ï¸ Sekarang Diputar' : 'â Ditambahkan ke Antrean',
       description,
     });
     if (tracks[0]?.info?.artworkUrl) embed.setThumbnail(tracks[0].info.artworkUrl);
