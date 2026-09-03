@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getOrCreatePlayer, search, play, setRadioMode, setSeed, getAutoplay, setAutoplay } = require('../../music/MusicManager');
+const { getOrCreatePlayer, search, play, setRadioMode, setSeed } = require('../../music/MusicManager');
 const { successEmbed, errorEmbed, createEmbed } = require('../../utils/embeds');
-const { formatDuration } = require('../../utils/embeds');
 const config = require('../../config/config');
 
 function platformLabel(query) {
@@ -51,78 +50,38 @@ async function handlePlay(client, ctx, queryStr) {
         `Tidak ada hasil untuk: **${query}**\n` +
         `Coba nama lagu yang berbeda atau tempel URL langsung.`
       );
-      return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
+      await (isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] })).catch(() => {});
+      return;
     }
 
-    // Jika autoplay sedang aktif → bersihkan lagu autoplay dari queue & matikan autoplay
-    if (getAutoplay(ctx.guild.id)) {
-      const queueTracks = player.queue.tracks;
-      const autoplayTracks = queueTracks.filter(t => t.requester?.isAutoplay === true);
-      for (const track of autoplayTracks) {
-        const idx = player.queue.tracks.indexOf(track);
-        if (idx !== -1) player.queue.tracks.splice(idx, 1);
-      }
-      setAutoplay(ctx.guild.id, false);
-    }
-
-    const maxDuration = config.music.maxDuration || 0; // 0 = tidak ada batas
     let tracks = [];
     let description = '';
     const platform = platformLabel(query);
     const platformTag = platform ? ` *(${platform})*` : '';
 
     if (result.loadType === 'playlist') {
-      let allTracks = result.tracks;
-      let skipped = 0;
-
-      // Filter track yang melebihi batas durasi (kecuali stream & maxDuration = 0)
-      if (maxDuration > 0) {
-        const filtered = allTracks.filter((t) => {
-          if (t.info.isStream) return true;
-          if (!t.info.duration || t.info.duration <= maxDuration) return true;
-          skipped++;
-          return false;
-        });
-        allTracks = filtered;
-      }
-
-      if (allTracks.length === 0) {
-        const embed = errorEmbed(
-          `Semua lagu di playlist melebihi batas durasi maksimum **${formatDuration(maxDuration)}**.`
-        );
-        return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
-      }
-
-      tracks = allTracks;
+      tracks = result.tracks;
       const playlistName = result.playlist?.name || 'Playlist';
-      description = `📋 Menambahkan **${tracks.length}** lagu dari playlist [${playlistName}](${query})${platformTag} ke antrean.`;
-      if (skipped > 0) description += `\n⚠️ **${skipped}** lagu dilewati (durasi > ${formatDuration(maxDuration)}).`;
+      description = `ð Menambahkan **${tracks.length}** lagu dari playlist [${playlistName}](${query})${platformTag} ke antrean.`;
     } else {
-      const track = result.tracks[0];
-
-      // Cek durasi untuk single track (skip jika stream / maxDuration = 0)
-      if (maxDuration > 0 && !track.info.isStream && track.info.duration > maxDuration) {
-        const embed = errorEmbed(
-          `❌ Lagu **${track.info.title}** memiliki durasi **${formatDuration(track.info.duration)}** ` +
-          `yang melebihi batas maksimum **${formatDuration(maxDuration)}**.\n` +
-          `Coba lagu yang lebih pendek.`
-        );
-        return isInteraction ? ctx.editReply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
-      }
-
-      tracks = [track];
-      description = `🎵 Menambahkan [**${track.info.title}**](${track.info.uri}) oleh **${track.info.author}**${platformTag} ke antrean.`;
+      tracks = [result.tracks[0]];
+      const track = tracks[0];
+      description = `ðµ Menambahkan [${track.info.title}](${track.info.uri}) - ${track.info.author}${platformTag} ke antrean.`;
     }
 
-    await play(player, tracks);
-
-    // Update seed ke lagu yang baru di-request
+    // Set seed lebih dahulu agar autoplay berikutnya mengikuti lagu user.
+    // Ini juga membatalkan hasil pencarian autoplay lama yang masih berjalan.
     setSeed(ctx.guild.id, tracks[0]);
+
+    // Jadikan permintaan user sebagai prioritas di antrean.
+    // MusicManager akan menghapus lagu autoplay yang masih menunggu
+    // lalu memasukkan lagu user ke posisi pertama.
+    await play(player, tracks, { priority: true });
 
     const isNowPlaying = !player.queue.previous && player.queue.tracks.length <= tracks.length;
     const embed = createEmbed({
       color: config.colors.success,
-      title: isNowPlaying ? '▶️ Sekarang Diputar' : '✅ Ditambahkan ke Antrean',
+      title: isNowPlaying ? 'â¶ï¸ Sekarang Diputar' : 'â Ditambahkan ke Antrean',
       description,
     });
     if (tracks[0]?.info?.artworkUrl) embed.setThumbnail(tracks[0].info.artworkUrl);
