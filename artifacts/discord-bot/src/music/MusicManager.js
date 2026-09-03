@@ -53,6 +53,7 @@ const radioModeMap = new Map();
 const radioStationMap = new Map();
 const seedMap = new Map();            // { title, author, uri, identifier }
 const autoplayHistoryMap = new Map(); // Set<uri> — sudah diputar dalam sesi autoplay
+const autoplayGenerationMap = new Map(); // Mencegah hasil autoplay lama masuk kembali
 const voiceEmojiMap = new Map();      // guildId → custom emoji string
 const stereoStatusMap = new Map();    // guildId → stereo status (always true, but tracked for logging)
 
@@ -337,22 +338,6 @@ function setVoiceStatus(
   return worker;
 }
 
-    voiceStatusCache.set(cacheKey, nextStatus);
-
-    try {
-      await client.rest.put(`/channels/${channelId}/voice-status`, {
-        body: { status: nextStatus },
-      });
-    } catch (err) {
-      if (voiceStatusCache.get(cacheKey) === nextStatus) {
-        voiceStatusCache.delete(cacheKey);
-      }
-
-      logger.debug(`Could not set voice status: ${err.message}`);
-    }
-  });
-}
-
 // Hapus status lama lalu tampilkan status lagu baru.
 async function replaceVoiceStatus(client, guildId, channelId, status) {
   if (!channelId) return;
@@ -442,6 +427,13 @@ function getAutoplay(guildId) { return autoplayMap.get(guildId) || false; }
 
 function setSeed(guildId, track) {
   if (!track?.info) return;
+
+  // Membatalkan hasil pencarian autoplay lama yang masih berjalan.
+  autoplayGenerationMap.set(
+    guildId,
+    (autoplayGenerationMap.get(guildId) || 0) + 1
+  );
+
   seedMap.set(guildId, {
     title:      track.info.title,
     author:     track.info.author,
@@ -458,6 +450,12 @@ function getSeed(guildId) {
 
 function updateAutoplaySeed(guildId, track) {
   if (!track?.info) return;
+
+  autoplayGenerationMap.set(
+    guildId,
+    (autoplayGenerationMap.get(guildId) || 0) + 1
+  );
+
   seedMap.set(guildId, {
     title:      track.info.title,
     author:     track.info.author,
@@ -521,6 +519,10 @@ const AUTOPLAY_BATCH = 5; // berapa lagu yang ditambahkan setiap kali autoplay
 
 async function fillAutoplayQueue(client, player) {
   if (!getAutoplay(player.guildId)) return;
+
+  // Simpan generasi saat pencarian dimulai. Jika user meminta lagu baru
+  // sebelum pencarian selesai, hasil pencarian lama tidak boleh ditambahkan.
+  const generation = autoplayGenerationMap.get(player.guildId) || 0;
 
   // Ambil seed — dari seedMap atau fallback ke cache terakhir
   let seed = getSeed(player.guildId);
@@ -607,6 +609,16 @@ async function fillAutoplayQueue(client, player) {
   // Tag semua lagu sebagai autoplay agar lavalinkHandler bisa update seed
   for (const track of tracksToAdd) {
     track.requester = { ...requester };
+  }
+
+  if (
+    !getAutoplay(player.guildId) ||
+    autoplayGenerationMap.get(player.guildId) !== generation
+  ) {
+    logger.info(
+      `Autoplay [${guildId(player)}]: hasil lama dibatalkan karena ada permintaan lagu baru`
+    );
+    return;
   }
 
   await player.queue.add(tracksToAdd);
