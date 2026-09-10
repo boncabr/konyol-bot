@@ -57,6 +57,328 @@ const autoplayGenerationMap = new Map(); // Mencegah hasil autoplay lama masuk k
 const voiceEmojiMap = new Map();      // guildId → custom emoji string
 const stereoStatusMap = new Map();    // guildId → stereo status (always true, but tracked for logging)
 
+// ─── Track Fade / Smooth Transition ─────────────────────────────────────────
+//
+// Fade dilakukan di sisi volume player Lavalink:
+// - Lagu yang hampir selesai fade-out selama 6 detik.
+// - Lagu berikutnya fade-in selama 6 detik.
+// - Skip manual memakai fade-out yang sama.
+// - pendingFadeIn dipertahankan supaya autoplay tetap ikut fade-in.
+
+const fadeStateMap = new Map();
+
+function getFadeDuration() {
+  return Math.max(100, Number(config.music.fadeDurationMs) || 6000);
+}
+
+function getFadeInterval() {
+  return Math.max(25, Number(config.music.fadeIntervalMs) || 100);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getTrackKey(track) {
+  return (
+    track?.info?.identifier ||
+    track?.info?.uri ||
+    track?.info?.title ||
+    null
+  );
+}
+
+function isCurrentTrack(player, track) {
+  const current = player.queue?.current;
+
+  if (!current || !track) return false;
+  if (current === track) return true;
+
+  const currentKey = getTrackKey(current);
+  const trackKey = getTrackKey(track);
+
+  return Boolean(currentKey && trackKey && currentKey === trackKey);
+}
+
+function clearFadeTimer(state) {
+  if (state?.timer) {
+    clearInterval(state.timer);
+    state.timer = null;
+  }
+}
+
+function getTargetVolume(player, state = null) {
+  const stateVolume = Number(state?.targetVolume);
+  const playerVolume = Number(player.volume);
+  const defaultVolume = Number(config.music.defaultVolume) || 80;
+
+  if (Number.isFinite(stateVolume) && stateVolume > 0) {
+    return stateVolume;
+  }
+
+  if (Number.isFinite(playerVolume) && playerVolume > 0) {
+    return playerVolume;
+  }
+
+  return defaultVolume;
+}
+
+async function rampVolume(player, track, from, to, durationMs) {
+  const duration = Math.max(0, Number(durationMs) || 0);
+  const interval = getFadeInterval();
+
+  if (duration === 0) {
+    if (!isCurrentTrack(player, track)) return false;
+
+    await player.setVolume(Math.max(0, Math.round(to)));
+    return true;
+  }
+
+  const steps = Math.max(1, Math.ceil(duration / interval));
+  const stepDuration = duration / steps;
+
+  for (let step = 1; step <= steps; step++) {
+    if (!isCurrentTrack(player, track)) {
+      return false;
+    }
+
+    const progress = step / steps;
+    const volume = from + (to - from) * progress;
+
+    await player.setVolume(Math.max(0, Math.round(volume)));
+
+    if (step < steps) {
+      await sleep(stepDuration);
+    }
+  }
+
+  return true;
+}
+
+function startTrackFade(player, track) {
+  const guildId = player.guildId;
+  const previousState = fadeStateMap.get(guildId);
+
+  if (previousState) {
+    clearFadeTimer(previousState);
+  }
+
+  const state = {
+    track,
+    trackKey: getTrackKey(track),
+    targetVolume: getTargetVolume(player, previousState),
+    timer: null,
+    fadePromise: null,
+    fadedOut: false,
+    pendingFadeIn: Boolean(
+      previousState?.pendingFadeIn ||
+      previousState?.fadedOut
+    ),
+  };
+
+  fadeStateMap.set(guildId, state);
+
+  // Fade-in untuk lagu baru. Ini juga berlaku untuk lagu autoplay.
+  if (state.pendingFadeIn) {
+    state.fadePromise = (async () => {
+      if (!isCurrentTrack(player, track)) return false;
+
+      await player.setVolume(0);
+
+      return rampVolume(
+        player,
+        track,
+        0,
+        state.targetVolume,
+        getFadeDuration()
+      );
+    })()
+      .catch((error) => {
+        logger.warn(`[Fade] Gagal fade-in: ${error.message}`);
+        return false;
+      })
+      .finally(() => {
+        state.fadePromise = null;
+        state.pendingFadeIn = false;
+      });
+  }
+
+  const trackDuration = Number(track?.info?.length || 0);
+
+  // Live stream/radio biasanya tidak memiliki durasi.
+  if (trackDuration <= 0) {
+    return;
+  }
+
+  // Pantau posisi track. Fade-out dimulai ketika sisa waktu <= 6 detik.
+  state.timer = setInterval(() => {
+    if (state.fadePromise || state.fadedOut) {
+      return;
+    }
+
+    if (!isCurrentTrack(player, track)) {
+      clearFadeTimer(state);
+
+      if (!state.pendingFadeIn) {
+        fadeStateMap.delete(guildId);
+      }
+
+      return;
+    }
+
+    const position = Number(player.position || 0);
+    const remaining = trackDuration - position;
+
+    if (remaining > getFadeDuration() || remaining <= 0) {
+      return;
+    }
+
+    const fadeDuration = Math.min(
+      getFadeDuration(),
+      Math.max(100, remaining)
+    );
+
+    const fromVolume = Number(player.volume) || state.targetVolume;
+
+    state.fadePromise = rampVolume(
+      player,
+      track,
+      fromVolume,
+      0,
+      fadeDuration
+    )
+      .then((success) => {
+        if (success) {
+          state.fadedOut = true;
+          state.pendingFadeIn = true;
+        }
+
+        return success;
+      })
+      .catch((error) => {
+        logger.warn(`[Fade] Gagal fade-out otomatis: ${error.message}`);
+        return false;
+      })
+      .finally(() => {
+        state.fadePromise = null;
+      });
+  }, 250);
+}
+
+// Dipanggil ketika track selesai sebelum track berikutnya mengirim trackStart.
+// Status ini penting untuk queueEnd/autoplay.
+function prepareNextTrackFade(player) {
+  const guildId = player.guildId;
+  let state = fadeStateMap.get(guildId);
+
+  if (!state) {
+    state = {
+      track: null,
+      trackKey: null,
+      targetVolume: getTargetVolume(player),
+      timer: null,
+      fadePromise: null,
+      fadedOut: false,
+      pendingFadeIn: false,
+    };
+
+    fadeStateMap.set(guildId, state);
+  }
+
+  state.pendingFadeIn = true;
+}
+
+// Dipakai oleh command skip agar skip manual juga smooth.
+async function fadeOutForTransition(player, track) {
+  const guildId = player.guildId;
+  let state = fadeStateMap.get(guildId);
+
+  if (!state || state.trackKey !== getTrackKey(track)) {
+    if (state) {
+      clearFadeTimer(state);
+    }
+
+    state = {
+      track,
+      trackKey: getTrackKey(track),
+      targetVolume: getTargetVolume(player),
+      timer: null,
+      fadePromise: null,
+      fadedOut: false,
+      pendingFadeIn: false,
+    };
+
+    fadeStateMap.set(guildId, state);
+  }
+
+  if (state.fadePromise) {
+    await state.fadePromise;
+  }
+
+  if (!isCurrentTrack(player, track)) {
+    return false;
+  }
+
+  if (state.fadedOut) {
+    return true;
+  }
+
+  clearFadeTimer(state);
+
+  const position = Number(player.position || 0);
+  const length = Number(track?.info?.length || 0);
+  const remaining = length - position;
+  const fadeDuration = remaining > 0
+    ? Math.min(getFadeDuration(), remaining)
+    : getFadeDuration();
+  const fromVolume = Number(player.volume) || state.targetVolume;
+
+  state.fadePromise = rampVolume(
+    player,
+    track,
+    fromVolume,
+    0,
+    fadeDuration
+  )
+    .then((success) => {
+      if (success) {
+        state.fadedOut = true;
+        state.pendingFadeIn = true;
+      }
+
+      return success;
+    })
+    .catch((error) => {
+      logger.warn(`[Fade] Gagal fade-out saat skip: ${error.message}`);
+      return false;
+    })
+    .finally(() => {
+      state.fadePromise = null;
+    });
+
+  return state.fadePromise;
+}
+
+function setPlaybackVolume(player, volume) {
+  const state = fadeStateMap.get(player.guildId);
+
+  if (state) {
+    state.targetVolume = volume;
+  }
+
+  return player.setVolume(volume);
+}
+
+function clearTrackFade(player) {
+  const state = fadeStateMap.get(player.guildId);
+
+  if (state) {
+    clearFadeTimer(state);
+  }
+
+  fadeStateMap.delete(player.guildId);
+}
+
 // ─── Radio Mode ───────────────────────────────────────────────────────────────
 
 function setRadioMode(guildId, enabled) { radioModeMap.set(guildId, enabled); }
@@ -679,6 +1001,11 @@ module.exports = {
   getOrCreatePlayer,
   search,
   play,
+  startTrackFade,
+  prepareNextTrackFade,
+  fadeOutForTransition,
+  setPlaybackVolume,
+  clearTrackFade,
   setVoiceStatus,
   replaceVoiceStatus,
   clearVoiceStatus,
