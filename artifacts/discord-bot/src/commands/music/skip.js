@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
 const config = require('../../config/config');
+const { fadeOutForTransition } = require('../../music/MusicManager');
 
 async function handleSkip(client, ctx) {
   const isInteraction = ctx.isChatInputCommand?.();
@@ -23,20 +24,37 @@ async function handleSkip(client, ctx) {
   // Kasus 1: Jika tidak ada lagu lagi di antrean (antrean kosong)
   if (player.queue.tracks.length === 0) {
     try {
+      await fadeOutForTransition(player, current);
       await player.stopPlaying(); // Hentikan pemutaran karena antrean habis
     } catch (stopErr) {
       try { await player.queue.utils.cleanUp(); } catch (_) {}
     }
     const embed = successEmbed(
       `Melewati **${current?.info?.title || 'lagu saat ini'}**. Tidak ada lagu berikutnya di antrean.`,
-      '⏭ Dilewati'
+      'â­ Dilewati'
     );
     return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
   }
 
   // Kasus 2: Masih ada lagu di antrean
   try {
-    // Cukup panggil skip() SATU KALI saja
+    // Fade-out dulu, lalu panggil skip() tepat satu kali.
+    // Track berikutnya akan fade-in melalui event trackStart.
+    const fadeCompleted = await fadeOutForTransition(player, current);
+
+    // Jika lagu sudah berpindah otomatis saat proses fade berlangsung,
+    // jangan panggil skip lagi karena bisa melewati dua lagu.
+    if (!fadeCompleted) {
+      const embed = successEmbed(
+        'Lagu sudah berganti secara otomatis.',
+        'â­ Dilewati'
+      );
+
+      return isInteraction
+        ? ctx.reply({ embeds: [embed] })
+        : ctx.reply({ embeds: [embed] });
+    }
+
     await player.skip();
   } catch (err) {
     const embed = errorEmbed(`Gagal melewati lagu: ${err.message}`);
@@ -45,7 +63,7 @@ async function handleSkip(client, ctx) {
 
   const embed = successEmbed(
     `Melewati **${current?.info?.title || 'lagu saat ini'}**.`,
-    '⏭ Dilewati'
+    'â­ Dilewati'
   );
   return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
 }
