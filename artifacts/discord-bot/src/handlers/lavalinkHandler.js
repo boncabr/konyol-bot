@@ -1,5 +1,21 @@
 const logger = require('../utils/logger');
-const { setVoiceStatus, clearVoiceStatus, cacheTrack, handleAutoplay, isRadioMode, getRadioStation, getAutoplay, setAutoplay, updateAutoplaySeed, getVoiceEmoji, clearVoiceEmoji, cleanTitle } = require('../music/MusicManager');
+const {
+  setVoiceStatus,
+  clearVoiceStatus,
+  cacheTrack,
+  handleAutoplay,
+  isRadioMode,
+  getRadioStation,
+  getAutoplay,
+  setAutoplay,
+  updateAutoplaySeed,
+  getVoiceEmoji,
+  clearVoiceEmoji,
+  cleanTitle,
+  startTrackFade,
+  prepareNextTrackFade,
+  clearTrackFade,
+} = require('../music/MusicManager');
 
 const BOLD_MAP = {
   a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',
@@ -70,6 +86,9 @@ async function tryFallbackSearch(client, player, track) {
 async function loadLavalinkEvents(client) {
   client.lavalink.on('trackStart', async (player, track) => {
   try {
+    // Fade-in ini juga berlaku untuk track yang diisi oleh autoplay.
+    startTrackFade(player, track);
+
     const voiceChannelId = player.voiceChannelId;
 
     // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
@@ -135,6 +154,9 @@ async function loadLavalinkEvents(client) {
 
   client.lavalink.on('trackEnd', async (player, track) => {
     try {
+      // Tandai track berikutnya agar autoplay juga melakukan fade-in.
+      prepareNextTrackFade(player);
+
       // Jangan hapus voice status jika autoplay aktif — queueEnd yang akan menanganinya
       if (player.queue.tracks.length === 0 && !getAutoplay(player.guildId)) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
@@ -307,12 +329,25 @@ async function loadLavalinkEvents(client) {
 
   client.lavalink.on('queueEnd', async (player, track) => {
     try {
+      const autoplayEnabled = getAutoplay(player.guildId);
+
+      // Jangan hapus fade state sebelum handleAutoplay selesai mengisi queue.
+      if (autoplayEnabled) {
+        prepareNextTrackFade(player);
+      }
+
       logger.debug(`Queue ended in guild ${player.guildId}`);
       await handleAutoplay(client, player);
 
+      // Jika autoplay mati dan queue benar-benar habis, timer fade dibersihkan.
+      // Jika autoplay aktif, state dipertahankan sampai trackStart berikutnya.
+      if (!autoplayEnabled) {
+        clearTrackFade(player);
+      }
+
       // Jangan hapus status saat autoplay masih aktif.
       // Prefetch dapat berjalan bersamaan dengan event queueEnd.
-      if (player.queue.tracks.length === 0 && !getAutoplay(player.guildId)) {
+      if (player.queue.tracks.length === 0 && !autoplayEnabled) {
         await setVoiceStatus(client, player.guildId, player.voiceChannelId, '');
         const channel = client.channels.cache.get(player.textChannelId);
         if (channel) {
@@ -339,6 +374,7 @@ async function loadLavalinkEvents(client) {
 
   // Matikan autoplay saat player di-destroy
   setAutoplay(player.guildId, false);
+   clearTrackFade(player);
 
   // Reset emoji ke default saat bot keluar VC
   clearVoiceEmoji(player.guildId);
