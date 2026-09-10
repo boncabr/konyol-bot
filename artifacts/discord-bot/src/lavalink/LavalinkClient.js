@@ -69,10 +69,7 @@ function createLavalinkManager(client) {
       destroyAfterMs: config.music.leaveOnEmptyDelay,
     },
     // STEREO IS ALWAYS ENABLED
-    stereo: {
-      enabled: true,
-      depth: audioConfig.stereoDepth || 0.5,
-    },
+    
   };
 
   const manager = new LavalinkManager({
