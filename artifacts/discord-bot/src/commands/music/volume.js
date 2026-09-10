@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { successEmbed, errorEmbed } = require('../../utils/embeds');
 const config = require('../../config/config');
+const { setPlaybackVolume } = require('../../music/MusicManager');
 
 async function handleVolume(client, ctx, args) {
   const isInteraction = ctx.isChatInputCommand?.();
@@ -30,10 +31,10 @@ async function handleVolume(client, ctx, args) {
     return isInteraction ? ctx.reply({ embeds: [embed], ephemeral: true }) : ctx.reply({ embeds: [embed] });
   }
 
-  await player.setVolume(volumeInput);
+  await setPlaybackVolume(player, volumeInput);
 
-  const emoji = volumeInput === 0 ? '🔇' : volumeInput < 50 ? '🔈' : volumeInput < 100 ? '🔉' : '🔊';
-  const embed = successEmbed(`Volume set to **${volumeInput}%** ${emoji}`, '🔊 Volume');
+  const emoji = volumeInput === 0 ? 'ð' : volumeInput < 50 ? 'ð' : volumeInput < 100 ? 'ð' : 'ð';
+  const embed = successEmbed(`Volume set to **${volumeInput}%** ${emoji}`, 'ð Volume');
   return isInteraction ? ctx.reply({ embeds: [embed] }) : ctx.reply({ embeds: [embed] });
 }
 
