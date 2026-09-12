@@ -1,104 +1,240 @@
 const logger = require('../utils/logger');
-const { isRadioMode, setAutoplay, clearVoiceEmoji, setVoiceStatus, consumeIntentionalDisconnect } = require('../music/MusicManager');
+
+const {
+  isRadioMode,
+  setAutoplay,
+  clearVoiceEmoji,
+  setVoiceStatus,
+} = require('../music/MusicManager');
+
+const {
+  ensureVoiceChannelBitrate,
+} = require('../utils/voiceChannelBitrate');
 
 module.exports = {
   name: 'voiceStateUpdate',
+
   async execute(client, oldState, newState) {
     try {
       const guildId = oldState.guild.id;
-      const player  = client.lavalink.getPlayer(guildId);
-      if (!player) return;
+      const player = client.lavalink.getPlayer(guildId);
+
+      if (!player) {
+        return;
+      }
 
       const botId = client.user.id;
 
-      // ── Bot was force-disconnected from VC ──────────────────────────────────
+      /*
+       * Bot terputus secara paksa dari voice channel.
+       */
       if (oldState.id === botId && !newState.channelId) {
-        if (consumeIntentionalDisconnect(guildId)) {
-          logger.info(`Bot left voice intentionally in guild ${guildId} — skipping auto-reconnect`);
-          return;
-        }
+        logger.warn(
+          `Bot was disconnected from voice in guild ${guildId} ` +
+          `— scheduling reconnect`
+        );
 
-        logger.warn(`Bot was disconnected from voice in guild ${guildId} — scheduling reconnect`);
-
-        // Reset semua filter EQ/efek ke default sebelum reconnect
-        // (player yang sama akan digunakan kembali, jadi filter harus dibersihkan)
+        /*
+         * Reset semua filter EQ/efek ke default sebelum reconnect.
+         */
         try {
           const pCheck = client.lavalink.getPlayer(guildId);
+
           if (pCheck?.filterManager) {
             await pCheck.filterManager.resetFilters();
-            logger.info(`Filters reset after force-disconnect in guild ${guildId}`);
+
+            logger.info(
+              `Filters reset after force-disconnect in guild ${guildId}`
+            );
           }
         } catch (resetErr) {
-          logger.warn(`Filter reset after disconnect failed: ${resetErr.message}`);
-        }
-
-        // Matikan autoplay saat bot keluar dari VC
-        setAutoplay(guildId, false);
-        logger.debug(`Autoplay dimatikan karena bot keluar dari VC di guild ${guildId}`);
-        // Reset emoji preference saat bot keluar VC (force-disconnect)
-        clearVoiceEmoji(guildId);
-        // Hapus voice channel status supaya teks lagu tidak terus tampil
-        if (oldState.channelId) {
-          await setVoiceStatus(client, guildId, oldState.channelId, '').catch((e) =>
-            logger.warn(`Failed to clear voice status on disconnect: ${e.message}`)
+          logger.warn(
+            `Filter reset after disconnect failed: ${resetErr.message}`
           );
         }
 
-        // Try reconnect up to 3 times with back-off
+        /*
+         * Matikan autoplay saat bot keluar dari voice channel.
+         */
+        setAutoplay(guildId, false);
+
+        logger.debug(
+          `Autoplay dimatikan karena bot keluar dari VC ` +
+          `di guild ${guildId}`
+        );
+
+        /*
+         * Reset emoji preference saat bot keluar dari voice channel.
+         */
+        clearVoiceEmoji(guildId);
+
+        /*
+         * Hapus voice channel status.
+         */
+        if (oldState.channelId) {
+          await setVoiceStatus(
+            client,
+            guildId,
+            oldState.channelId,
+            ''
+          ).catch((error) => {
+            logger.warn(
+              `Failed to clear voice status on disconnect: ` +
+              `${error.message}`
+            );
+          });
+        }
+
+        /*
+         * Coba reconnect maksimal tiga kali.
+         */
         let attempts = 0;
+
         const tryReconnect = async () => {
           attempts++;
+
           try {
-            const p = client.lavalink.getPlayer(guildId);
-            if (!p) return; // player already destroyed
+            const reconnectPlayer =
+              client.lavalink.getPlayer(guildId);
 
-            if (!p.connected) {
-              await p.connect();
-              logger.info(`Auto-reconnected to voice in guild ${guildId} (attempt ${attempts})`);
+            if (!reconnectPlayer) {
+              return;
+            }
 
-              // Resume from last position if we know it
-              if (!p.playing && p.queue.current) {
+            if (!reconnectPlayer.connected) {
+              await reconnectPlayer.connect();
+
+              /*
+               * Atur ulang bitrate setelah reconnect berhasil.
+               */
+              await ensureVoiceChannelBitrate(
+                client,
+                guildId,
+                reconnectPlayer.voiceChannelId ||
+                  oldState.channelId
+              );
+
+              logger.info(
+                `Auto-reconnected to voice in guild ${guildId} ` +
+                `(attempt ${attempts})`
+              );
+
+              /*
+               * Resume playback jika masih ada lagu.
+               */
+              if (
+                !reconnectPlayer.playing &&
+                reconnectPlayer.queue.current
+              ) {
                 try {
-                  await p.play();
-                  logger.info(`Resumed playback in guild ${guildId}`);
+                  await reconnectPlayer.play();
+
+                  logger.info(
+                    `Resumed playback in guild ${guildId}`
+                  );
                 } catch (resumeErr) {
-                  logger.warn(`Could not resume playback: ${resumeErr.message}`);
+                  logger.warn(
+                    `Could not resume playback: ` +
+                    `${resumeErr.message}`
+                  );
                 }
               }
             }
-          } catch (err) {
-            logger.error(`Auto-reconnect attempt ${attempts} failed: ${err.message}`);
+          } catch (error) {
+            logger.error(
+              `Auto-reconnect attempt ${attempts} failed: ` +
+              `${error.message}`
+            );
+
             if (attempts < 3) {
-              setTimeout(tryReconnect, attempts * 5000); // 5s, 10s, 15s
+              setTimeout(
+                tryReconnect,
+                attempts * 5000
+              );
             } else {
-              logger.error(`Giving up reconnect after ${attempts} attempts in guild ${guildId}`);
+              logger.error(
+                `Giving up reconnect after ${attempts} attempts ` +
+                `in guild ${guildId}`
+              );
             }
           }
         };
 
         setTimeout(tryReconnect, 3000);
+
         return;
       }
 
-      // ── Bot was moved to a different VC ─────────────────────────────────────
-      if (oldState.id === botId && newState.channelId && oldState.channelId !== newState.channelId) {
-        logger.info(`Bot moved to new channel ${newState.channelId} in guild ${guildId}`);
-        if (player.voiceChannelId !== newState.channelId) {
+      /*
+       * Bot masuk ke voice channel atau dipindahkan ke channel lain.
+       *
+       * Kondisi ini juga menangani bot yang baru pertama kali join,
+       * karena oldState.channelId biasanya null.
+       */
+      if (
+        oldState.id === botId &&
+        newState.channelId &&
+        oldState.channelId !== newState.channelId
+      ) {
+        logger.info(
+          `Bot moved to new channel ${newState.channelId} ` +
+          `in guild ${guildId}`
+        );
+
+        if (
+          player.voiceChannelId !== newState.channelId
+        ) {
           player.voiceChannelId = newState.channelId;
         }
+
+        /*
+         * Atur bitrate otomatis pada channel yang baru dimasuki.
+         */
+        await ensureVoiceChannelBitrate(
+          client,
+          guildId,
+          newState.channelId
+        );
+
         return;
       }
 
-      // ── Humans left VC — previously would leave if empty; now we STAY by design ─
-      if (!player.voiceChannelId) return;
-      const voiceChannel = oldState.guild.channels.cache.get(player.voiceChannelId);
-      if (!voiceChannel) return;
+      /*
+       * Jika player tidak memiliki voice channel,
+       * tidak ada yang perlu diproses.
+       */
+      if (!player.voiceChannelId) {
+        return;
+      }
 
-      const members = voiceChannel.members.filter((m) => !m.user.bot);
+      const voiceChannel =
+        oldState.guild.channels.cache.get(
+          player.voiceChannelId
+        );
+
+      if (!voiceChannel) {
+        return;
+      }
+
+      /*
+       * Bot tetap berada di voice channel walaupun semua user keluar.
+       */
+      const members = voiceChannel.members.filter(
+        (member) => !member.user.bot
+      );
+
       if (members.size === 0) {
-        // New behavior: always stay in VC unless explicitly told to leave via command
-        logger.debug(`Voice channel empty in guild ${guildId} — staying as configured (no auto-leave)`);
+        logger.debug(
+          `Voice channel empty in guild ${guildId} ` +
+          `— staying as configured (no auto-leave)`
+        );
+
         return;
       }
-    } catch (err) {
-      logger.error(`voiceStateUpdate error: ${err.message}`);
+    } catch (error) {
+      logger.error(
+        `voiceStateUpdate error: ${error.message}`
+      );
+    }
+  },
+};
