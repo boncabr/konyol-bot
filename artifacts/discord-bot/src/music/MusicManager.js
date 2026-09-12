@@ -1,6 +1,8 @@
 const logger = require('../utils/logger');
 const config = require('../config/config');
-
+const {
+  ensureVoiceChannelBitrate,
+} = require('../utils/voiceChannelBitrate');
 const DEFAULT_EQ = [
   { band:  0, gain:  0.10   }, // 20Hz   — sub bass
   { band:  1, gain:  0.15  }, // 60Hz   — bass
