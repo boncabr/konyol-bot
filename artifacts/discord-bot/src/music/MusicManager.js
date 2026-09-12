@@ -439,10 +439,17 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
   }
 
   if (!player.connected) {
-    await player.connect();
-  }
+  await player.connect();
+}
 
-  return player;
+// Mengatur bitrate setelah bot berhasil masuk ke voice channel.
+await ensureVoiceChannelBitrate(
+  client,
+  guildId,
+  player.voiceChannelId || voiceChannelId
+);
+
+return player;
 }
 
 // ─── Search & Play ────────────────────────────────────────────────────────────
