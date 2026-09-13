@@ -35,7 +35,7 @@ async function applyDefaultEQ(player) {
 async function applyStereoDefault(player) {
   try {
     // Force 2-channel stereo output
-    await player.filterManager.setChannelMix({
+    await player.filterManager.setAudioOutput('stereo');
       leftToLeft: 1.0,
       leftToRight: 0.0,
       rightToLeft: 0.0,
