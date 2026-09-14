@@ -36,12 +36,7 @@ async function applyStereoDefault(player) {
   try {
     // Force 2-channel stereo output
     await player.filterManager.setAudioOutput('stereo');
-      leftToLeft: 1.0,
-      leftToRight: 0.0,
-      rightToLeft: 0.0,
-      rightToRight: 1.0,
-    });
-    logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
+    logger.debug('[STEREO] 2-channel stereo enabled by default');
   } catch (e) {
     logger.warn('[STEREO] Failed to apply stereo: ' + e.message);
   }
@@ -1006,6 +1001,8 @@ function cleanTitle(title) {
 module.exports = {
   DEFAULT_EQ,
   setRadioMode,
+  setRadioStation,
+  getRadioStation,
   isRadioMode,
   getOrCreatePlayer,
   search,
