@@ -1,5 +1,98 @@
 require('dotenv').config();
 
+/**
+ * Build Lavalink nodes array from environment variables.
+ * Supports multiple nodes with automatic failover.
+ * Node names are hidden (generic identifiers like 'node-1', 'node-2', etc.)
+ * 
+ * Environment variables format:
+ * - LAVALINK_HOST, LAVALINK_PORT, LAVALINK_PASSWORD, LAVALINK_SECURE, LAVALINK_SELF_SIGNED
+ * - LAVALINK_HOST_2, LAVALINK_PORT_2, LAVALINK_PASSWORD_2, LAVALINK_SECURE_2, LAVALINK_SELF_SIGNED_2
+ * - LAVALINK_HOST_3, ... (and so on)
+ */
+function buildLavalinkNodes() {
+  const nodes = [];
+
+  // Primary node from env
+  if (process.env.LAVALINK_HOST) {
+    nodes.push({
+      id: 'node-1',
+      host: process.env.LAVALINK_HOST,
+      port: parseInt(process.env.LAVALINK_PORT || '443', 10),
+      password: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED === 'true',
+      retryAmount: 15,
+      retryDelay: 5000,
+    });
+  }
+
+  // Fallback node 2 from env
+  if (process.env.LAVALINK_HOST_2) {
+    nodes.push({
+      id: 'node-2',
+      host: process.env.LAVALINK_HOST_2,
+      port: parseInt(process.env.LAVALINK_PORT_2 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_2 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_2 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_2 === 'true',
+      retryAmount: 15,
+      retryDelay: 5000,
+    });
+  }
+
+  // Fallback node 3 from env
+  if (process.env.LAVALINK_HOST_3) {
+    nodes.push({
+      id: 'node-3',
+      host: process.env.LAVALINK_HOST_3,
+      port: parseInt(process.env.LAVALINK_PORT_3 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_3 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_3 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_3 === 'true',
+      retryAmount: 15,
+      retryDelay: 5000,
+    });
+  }
+
+  // Fallback node 4 from env
+  if (process.env.LAVALINK_HOST_4) {
+    nodes.push({
+      id: 'node-4',
+      host: process.env.LAVALINK_HOST_4,
+      port: parseInt(process.env.LAVALINK_PORT_4 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_4 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_4 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_4 === 'true',
+      retryAmount: 15,
+      retryDelay: 5000,
+    });
+  }
+
+  // Fallback node 5 from env
+  if (process.env.LAVALINK_HOST_5) {
+    nodes.push({
+      id: 'node-5',
+      host: process.env.LAVALINK_HOST_5,
+      port: parseInt(process.env.LAVALINK_PORT_5 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_5 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_5 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_5 === 'true',
+      retryAmount: 15,
+      retryDelay: 5000,
+    });
+  }
+
+  // Log detected nodes for debugging
+  if (nodes.length > 0) {
+    console.log(`[Config] Detected ${nodes.length} Lavalink node(s):`, nodes.map(n => `${n.id} (${n.host}:${n.port})`).join(', '));
+  } else {
+    console.warn('[Config] ⚠️  No Lavalink nodes configured! Set LAVALINK_HOST and other variables.');
+  }
+
+  return nodes;
+}
+
 module.exports = {
   prefix: process.env.PREFIX || '?',
   token: process.env.DISCORD_TOKEN,
@@ -7,18 +100,7 @@ module.exports = {
   guildId: process.env.GUILD_ID || null,
 
   lavalink: {
-    nodes: [
-      {
-        id: 'primary',
-        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
-        port: parseInt(process.env.LAVALINK_PORT || '443'),
-        password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
-        secure: process.env.LAVALINK_SECURE === 'true',
-        selfSigned: process.env.LAVALINK_SELF_SIGNED === 'true',
-        retryAmount: 15,
-        retryDelay: 5000,
-      },
-    ],
+    nodes: buildLavalinkNodes(),
   },
 
   radio: {
@@ -32,9 +114,9 @@ module.exports = {
   },
 
   music: {
-    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '100'),
+    defaultVolume: parseInt(process.env.DEFAULT_VOLUME || '100', 10),
     maxQueueSize: 500,
-    maxDuration: parseInt(process.env.MAX_DURATION || '28800000'),
+    maxDuration: parseInt(process.env.MAX_DURATION || '28800000', 10),
     searchPlatform: 'ytsearch',
     leaveOnEmptyDelay: 30000,
     leaveOnEndDelay: 30000,
@@ -59,7 +141,7 @@ module.exports = {
   },
 
   keepAlive: {
-    port: parseInt(process.env.PORT || '3000'),
+    port: parseInt(process.env.PORT || '3000', 10),
   },
 
   lyrics: {
