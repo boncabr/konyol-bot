@@ -16,14 +16,13 @@ function applyTlsSettings(nodes) {
   if (selfSignedNodes.length > 0) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     logger.warn(
-      `[TLS] NODE_TLS_REJECT_UNAUTHORIZED=0 diaktifkan karena node berikut pakai self-signed cert: ` +
-      selfSignedNodes.map((n) => n.id).join(', ') +
-      `. Gunakan LAVALINK_SELF_SIGNED=false jika server sudah pakai certificate dari CA resmi.`
+      `[TLS] NODE_TLS_REJECT_UNAUTHORIZED=0 diaktifkan karena ${selfSignedNodes.length} node(s) pakai self-signed cert. ` +
+      `Gunakan LAVALINK_SELF_SIGNED=false jika server sudah pakai certificate dari CA resmi.`
     );
   } else {
     delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
     if (plainNodes.length > 0) {
-      logger.info(`[TLS] Node tanpa SSL: ${plainNodes.map((n) => n.id).join(', ')} (ws://, no TLS)`);
+      logger.info(`[TLS] ${plainNodes.length} node(s) tanpa SSL (ws://, no TLS)`);
     }
   }
 }
@@ -45,11 +44,18 @@ function buildNodes() {
 
 function createLavalinkManager(client) {
   const nodes = buildNodes();
+  
+  if (nodes.length === 0) {
+    logger.error('❌ Tidak ada Lavalink node yang dikonfigurasi! Pastikan LAVALINK_HOST diset di environment variables.');
+    logger.error('Contoh: LAVALINK_HOST=host.com LAVALINK_PORT=443 LAVALINK_PASSWORD=pass LAVALINK_SECURE=true');
+    throw new Error('No Lavalink nodes configured');
+  }
+
   applyTlsSettings(nodes);
 
   logger.info(
-    `Configuring ${nodes.length} Lavalink node(s): ` +
-    nodes.map((n) => `${n.id} (${n.secure ? 'SSL' : 'no-SSL'}${n.selfSigned ? '/self-signed' : ''})`).join(', ')
+    `Configuring ${nodes.length} Lavalink node(s) — ` +
+    nodes.map((n) => `${n.id} (${n.secure ? 'SSL' : 'ws'})`).join(', ')
   );
 
   // ─── Stereo Audio Configuration (DEFAULT) ──────────────────────────────────
@@ -112,25 +118,25 @@ function createLavalinkManager(client) {
   }
 
   manager.on('nodeConnect', (node) => {
-    logger.info(`✅ Lavalink node [${node.id}] (${node.options?.host}) terhubung`);
+    logger.info(`✅ Lavalink node [${node.id}] connected`);
     resetNodeFailCount(node.id);
   });
 
   manager.on('nodeDisconnect', (node, reason) => {
-    // Hanya log — tidak memanggil handleNodeFailure agar tidak double-count
-    // saat lavalink-client melakukan retry (setiap retry gagal akan trigger 'nodeError')
-    logger.warn(`⚠️  Lavalink node [${node.id}] terputus: ${reason?.reason || 'unknown'} — lavalink-client akan mencoba reconnect otomatis...`);
+    logger.warn(
+      `⚠️  Lavalink node [${node.id}] disconnected: ${reason?.reason || 'unknown'} — ` +
+      `lavalink-client akan mencoba reconnect otomatis...`
+    );
   });
 
   manager.on('nodeError', (node, error) => {
-    // Satu-satunya tempat handleNodeFailure dipanggil — untuk menghindari triple-counting
     const msg = error?.message || (typeof error === 'string' ? error : 'connection error');
     logger.error(`❌ Lavalink node [${node?.id || 'unknown'}] error: ${msg}`);
     handleNodeFailure(node?.id || 'unknown').catch(() => {});
   });
 
   manager.on('nodeReconnect', (node) => {
-    logger.info(`🔄 Lavalink node [${node.id}] sedang reconnect...`);
+    logger.info(`🔄 Lavalink node [${node.id}] reconnecting...`);
   });
 
   manager.on('nodeDestroy', (node, destroyReason) => {

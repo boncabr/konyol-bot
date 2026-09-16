@@ -1,5 +1,44 @@
 require('dotenv').config();
 
+/**
+ * Build Lavalink nodes array from environment variables.
+ * Supports multiple nodes with automatic fallback.
+ * Node names are hidden (generic identifiers like 'node-1', 'node-2', etc.)
+ */
+function buildLavalinkNodes() {
+  const nodes = [];
+  let nodeIndex = 1;
+
+  // Scan for LAVALINK_HOST, LAVALINK_HOST_2, LAVALINK_HOST_3, etc.
+  for (let i = 1; ; i++) {
+    const suffix = i === 1 ? '' : `_${i}`;
+    const host = process.env[`LAVALINK_HOST${suffix}`];
+    
+    if (!host) break; // Stop when no more hosts found
+    
+    const port = parseInt(process.env[`LAVALINK_PORT${suffix}`] || '443');
+    const password = process.env[`LAVALINK_PASSWORD${suffix}`] || 'youshallnotpass';
+    const secure = process.env[`LAVALINK_SECURE${suffix}`] === 'true';
+    const selfSigned = process.env[`LAVALINK_SELF_SIGNED${suffix}`] === 'true';
+
+    // Hide node names — use generic identifiers
+    nodes.push({
+      id: `node-${nodeIndex}`,
+      host,
+      port,
+      password,
+      secure,
+      selfSigned,
+    });
+    
+    nodeIndex++;
+  }
+
+  // If no nodes configured via env, return empty array
+  // (lavalink-client will handle this gracefully)
+  return nodes;
+}
+
 module.exports = {
   prefix: process.env.PREFIX || '?',
   token: process.env.DISCORD_TOKEN,
@@ -7,32 +46,7 @@ module.exports = {
   guildId: process.env.GUILD_ID || null,
 
   lavalink: {
-    nodes: [
-      // Primary node — override via Railway env vars
-      {
-        id: 'primary',
-        host: process.env.LAVALINK_HOST || 'lavalinkv4.serenetia.com',
-        port: parseInt(process.env.LAVALINK_PORT || '443'),
-        password: process.env.LAVALINK_PASSWORD || 'https://seretia.link/discord',
-        secure: process.env.LAVALINK_SECURE !== 'true',
-      },
-      // Fallback node 1 — Jirayu v4 (global, non-SSL)
-      ...(process.env.LAVALINK_HOST ? [] : [{
-        id: 'fallback1',
-        host: 'lavalink.jirayu.net',
-        port: 13592,
-        password: 'youshallnotpass',
-        secure: false,
-      }]),
-      // Fallback node 2 — HeavenCloud (global, non-SSL)
-      ...(process.env.LAVALINK_HOST ? [] : [{
-        id: 'fallback2',
-        host: '89.106.84.59',
-        port: 4000,
-        password: 'heavencloud.in',
-        secure: false,
-      }]),
-    ],
+    nodes: buildLavalinkNodes(),
   },
 
   radio: {
