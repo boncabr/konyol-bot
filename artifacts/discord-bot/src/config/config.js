@@ -12,40 +12,72 @@ require('dotenv').config();
  */
 function buildLavalinkNodes() {
   const nodes = [];
-  let nodeIndex = 1;
 
-  // Scan for LAVALINK_HOST, LAVALINK_HOST_2, LAVALINK_HOST_3, etc.
-  for (let i = 1; i <= 10; i++) { // Support up to 10 nodes
-    const suffix = i === 1 ? '' : `_${i}`;
-    const host = process.env[`LAVALINK_HOST${suffix}`];
-    
-    // Stop scanning if we hit a gap (no host found for this index)
-    if (!host) {
-      if (i > 2) break; // Only continue past 1 if we found node 2
-      continue;
-    }
-    
-    const port = parseInt(process.env[`LAVALINK_PORT${suffix}`] || '443', 10);
-    const password = process.env[`LAVALINK_PASSWORD${suffix}`] || 'youshallnotpass';
-    const secure = process.env[`LAVALINK_SECURE${suffix}`] === 'true';
-    const selfSigned = process.env[`LAVALINK_SELF_SIGNED${suffix}`] === 'true';
-
-    // Hide node names — use generic identifiers
+  // Primary node from env
+  if (process.env.LAVALINK_HOST) {
     nodes.push({
-      id: `node-${nodeIndex}`,
-      host,
-      port,
-      password,
-      secure,
-      selfSigned,
+      id: 'node-1',
+      host: process.env.LAVALINK_HOST,
+      port: parseInt(process.env.LAVALINK_PORT || '443', 10),
+      password: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED === 'true',
     });
-    
-    nodeIndex++;
+  }
+
+  // Fallback node 2 from env
+  if (process.env.LAVALINK_HOST_2) {
+    nodes.push({
+      id: 'node-2',
+      host: process.env.LAVALINK_HOST_2,
+      port: parseInt(process.env.LAVALINK_PORT_2 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_2 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_2 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_2 === 'true',
+    });
+  }
+
+  // Fallback node 3 from env
+  if (process.env.LAVALINK_HOST_3) {
+    nodes.push({
+      id: 'node-3',
+      host: process.env.LAVALINK_HOST_3,
+      port: parseInt(process.env.LAVALINK_PORT_3 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_3 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_3 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_3 === 'true',
+    });
+  }
+
+  // Fallback node 4 from env
+  if (process.env.LAVALINK_HOST_4) {
+    nodes.push({
+      id: 'node-4',
+      host: process.env.LAVALINK_HOST_4,
+      port: parseInt(process.env.LAVALINK_PORT_4 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_4 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_4 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_4 === 'true',
+    });
+  }
+
+  // Fallback node 5 from env
+  if (process.env.LAVALINK_HOST_5) {
+    nodes.push({
+      id: 'node-5',
+      host: process.env.LAVALINK_HOST_5,
+      port: parseInt(process.env.LAVALINK_PORT_5 || '443', 10),
+      password: process.env.LAVALINK_PASSWORD_5 || 'youshallnotpass',
+      secure: process.env.LAVALINK_SECURE_5 === 'true',
+      selfSigned: process.env.LAVALINK_SELF_SIGNED_5 === 'true',
+    });
   }
 
   // Log detected nodes for debugging
   if (nodes.length > 0) {
     console.log(`[Config] Detected ${nodes.length} Lavalink node(s):`, nodes.map(n => `${n.id} (${n.host}:${n.port})`).join(', '));
+  } else {
+    console.warn('[Config] ⚠️  No Lavalink nodes configured! Set LAVALINK_HOST and other variables.');
   }
 
   return nodes;
