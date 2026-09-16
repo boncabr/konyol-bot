@@ -35,13 +35,8 @@ async function applyDefaultEQ(player) {
 async function applyStereoDefault(player) {
   try {
     // Force 2-channel stereo output
-    await player.filterManager.setChannelMix({
-      leftToLeft: 1.0,
-      leftToRight: 0.0,
-      rightToLeft: 0.0,
-      rightToRight: 1.0,
-    });
-    logger.debug('[STEREO] ChannelMix applied — 2-channel stereo enabled by default');
+    await player.filterManager.setAudioOutput('stereo');
+    logger.debug('[STEREO] 2-channel stereo enabled by default');
   } catch (e) {
     logger.warn('[STEREO] Failed to apply stereo: ' + e.message);
   }
@@ -439,17 +434,17 @@ async function getOrCreatePlayer(client, guildId, voiceChannelId, textChannelId)
   }
 
   if (!player.connected) {
-  await player.connect();
-}
+    await player.connect();
+  }
 
-// Mengatur bitrate setelah bot berhasil masuk ke voice channel.
-await ensureVoiceChannelBitrate(
-  client,
-  guildId,
-  player.voiceChannelId || voiceChannelId
-);
+  // Mengatur bitrate setelah bot berhasil masuk ke voice channel.
+  await ensureVoiceChannelBitrate(
+    client,
+    guildId,
+    player.voiceChannelId || voiceChannelId
+  );
 
-return player;
+  return player;
 }
 
 // ─── Search & Play ────────────────────────────────────────────────────────────
@@ -1006,6 +1001,8 @@ function cleanTitle(title) {
 module.exports = {
   DEFAULT_EQ,
   setRadioMode,
+  setRadioStation,
+  getRadioStation,
   isRadioMode,
   getOrCreatePlayer,
   search,
