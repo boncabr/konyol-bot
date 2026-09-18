@@ -66,91 +66,122 @@ function getFriendlyErrorMsg(type, title) {
 async function tryFallbackSearch(client, player, track) {
   const title = track?.info?.title;
   const author = track?.info?.author;
+  const originalUri = track?.info?.uri;
+
   if (!title) return null;
 
-  const query = author ? `${title} ${author}` : title;
-  for (const source of ['scsearch', 'ytsearch']) {
-    try {
-      const result = await player.search({ query, source }, { id: client.user.id, username: 'Fallback' });
-      if (result?.tracks?.length > 0) {
-        logger.info(`Fallback search [${source}] found: "${result.tracks[0].info.title}"`);
-        return { track: result.tracks[0], source };
+  const queries = [
+    author ? `${title} ${author}` : title,
+    title,
+  ];
+
+  const sources = ['ytsearch', 'scsearch'];
+
+  for (const query of queries) {
+    for (const source of sources) {
+      try {
+        const result = await player.search(
+          { query, source },
+          {
+            id: client.user.id,
+            username: 'Fallback',
+          }
+        );
+
+        const alternativeTrack = result?.tracks?.find((candidate) => {
+          const uri = candidate?.info?.uri;
+          return uri && uri !== originalUri;
+        });
+
+        if (alternativeTrack) {
+          logger.info(
+            `Fallback search berhasil [${source}]: "${alternativeTrack.info.title}"`
+          );
+
+          return {
+            track: alternativeTrack,
+            source,
+          };
+        }
+      } catch (err) {
+        logger.warn(
+          `Fallback search gagal [${source}] "${query}": ${err.message}`
+        );
       }
-    } catch (err) {
-      logger.warn(`Fallback search [${source}] failed: ${err.message}`);
     }
   }
+
   return null;
 }
 
 async function loadLavalinkEvents(client) {
   client.lavalink.on('trackStart', async (player, track) => {
-  try {
-    // Fade-in ini juga berlaku untuk track yang diisi oleh autoplay.
-    startTrackFade(player, track);
+    try {
+      // Fade-in ini juga berlaku untuk track yang diisi oleh autoplay.
+      startTrackFade(player, track);
 
-    const voiceChannelId = player.voiceChannelId;
+      const voiceChannelId = player.voiceChannelId;
 
-    // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
-    if (voiceChannelId) {
-      const voiceEmoji = getVoiceEmoji(player.guildId);
-      const radioStation = isRadioMode(player.guildId)
-        ? getRadioStation(player.guildId)
-        : null;
+      // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
+      if (voiceChannelId) {
+        const voiceEmoji = getVoiceEmoji(player.guildId);
+        const radioStation = isRadioMode(player.guildId)
+          ? getRadioStation(player.guildId)
+          : null;
 
-      const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
-      const displayTitle = radioStation
-        ? `📻 Radio: ${radioStation}`
-        : track.info.title;
-      const displayAuthor = radioStation
-        ? 'Radio Mode'
-        : track.info.author;
+        const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
+        const displayTitle = radioStation
+          ? `📻 Radio: ${radioStation}`
+          : track.info.title;
+        const displayAuthor = radioStation
+          ? 'Radio Mode'
+          : track.info.author;
 
-      const status = voiceEmoji
-        ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
-        : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
+        const status = voiceEmoji
+          ? `**${voiceEmoji}${displayTitle} 𝒃𝒄 ${displayAuthor}**`
+          : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒄 ${displayAuthor}**`;
 
-      // Log ini memastikan event trackStart menerima lagu yang benar
-      // sebelum status voice dikirim ke Discord.
-      logger.info(
-        `[TrackStart] guild=${player.guildId} ` +
-        `channel=${voiceChannelId} ` +
-        `title="${track.info.title}"`
+        // Log ini memastikan event trackStart menerima lagu yang benar
+        // sebelum status voice dikirim ke Discord.
+        logger.info(
+          `[TrackStart] guild=${player.guildId} ` +
+          `channel=${voiceChannelId} ` +
+          `title="${track.info.title}"`
+        );
+
+        // Kirim status baru langsung tanpa menghapus status terlebih dahulu.
+        // Discord akan mengganti status lama dengan status track terbaru.
+        void setVoiceStatus(
+          client,
+          player.guildId,
+          voiceChannelId,
+          status,
+          { force: true }
+        );
+      }
+
+      // Proses tambahan dilakukan setelah status dikirim
+      cacheTrack(player.guildId, track);
+
+      if (track.requester?.isAutoplay && getAutoplay(player.guildId)) {
+        updateAutoplaySeed(player.guildId, track);
+      }
+
+      logger.debug(
+        `Track started: "${track.info.title}" in guild ${player.guildId}`
       );
 
-      // Kirim status baru langsung tanpa menghapus status terlebih dahulu.
-      // Discord akan mengganti status lama dengan status track terbaru.
-      void setVoiceStatus(
-        client,
-        player.guildId,
-        voiceChannelId,
-        status,
-        { force: true }
-      );
+      // Isi antrean lebih awal agar pencarian tidak menunggu queueEnd.
+      // Dengan begitu lagu berikutnya sudah siap saat trackStart berikutnya terjadi.
+      if (getAutoplay(player.guildId) && (player.queue?.tracks?.length ?? 0) <= 1) {
+        void handleAutoplay(client, player).catch((err) => {
+          logger.warn(`Autoplay prefetch gagal: ${err.message}`);
+        });
+      }
+    } catch (err) {
+      logger.error(`trackStart error: ${err.message}`);
     }
-
-    // Proses tambahan dilakukan setelah status dikirim
-    cacheTrack(player.guildId, track);
-
-    if (track.requester?.isAutoplay && getAutoplay(player.guildId)) {
-      updateAutoplaySeed(player.guildId, track);
-    }
-
-    logger.debug(
-      `Track started: "${track.info.title}" in guild ${player.guildId}`
-    );
-
-    // Isi antrean lebih awal agar pencarian tidak menunggu queueEnd.
-    // Dengan begitu lagu berikutnya sudah siap saat trackStart berikutnya terjadi.
-    if (getAutoplay(player.guildId) && (player.queue?.tracks?.length ?? 0) <= 1) {
-      void handleAutoplay(client, player).catch((err) => {
-        logger.warn(`Autoplay prefetch gagal: ${err.message}`);
-      });
-    }
-  } catch (err) {
-    logger.error(`trackStart error: ${err.message}`);
-  }
-});
+  });
 
   client.lavalink.on('trackEnd', async (player, track) => {
     try {
@@ -291,14 +322,44 @@ async function loadLavalinkEvents(client) {
       const errType = classifyError(errMsg);
       const textChannel = client.channels.cache.get(player.textChannelId);
 
-      // PENTING: jangan panggil player.skip() di sini.
-      // autoSkip:true sudah otomatis advance queue via TrackEndEvent dari Lavalink.
-      // Memanggil skip() manual + autoSkip = double-skip → seluruh antrian playlist
-      // (misal 25 lagu) habis seketika tanpa ada yang sempat diputar.
+      // PRIORITAS PERTAMA: fallback untuk copyright/proxy/timeout
+      if (
+        errType === 'copyright' ||
+        errType === 'proxy' ||
+        errType === 'timeout'
+      ) {
+        const fallback = await tryFallbackSearch(client, player, track);
 
-      if (errType === 'copyright' || errType === 'proxy' || errType === 'timeout') {
-        if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg(errType, track?.info?.title) }).catch(() => {});
-        // autoSkip akan maju dengan sendirinya
+        if (fallback) {
+          logger.info(
+            `Fallback berhasil untuk "${track?.info?.title}" menggunakan ${fallback.source}`
+          );
+
+          try {
+            await player.queue.add(fallback.track, 0);
+
+            if (textChannel) {
+              await textChannel.send({
+                content:
+                  `🔄 **${track?.info?.title}** tidak dapat diputar dari sumber utama. ` +
+                  `Mencoba versi alternatif...`
+              }).catch(() => {});
+            }
+
+            return;
+          } catch (fallbackErr) {
+            logger.warn(
+              `Gagal memasukkan track fallback ke queue: ${fallbackErr.message}`
+            );
+          }
+        }
+
+        if (textChannel) {
+          await textChannel.send({
+            content: getFriendlyErrorMsg(errType, track?.info?.title)
+          }).catch(() => {});
+        }
+
         return;
       }
 
@@ -310,17 +371,24 @@ async function loadLavalinkEvents(client) {
       }
 
       const fallback = await tryFallbackSearch(client, player, track);
+
       if (fallback) {
         logger.info(`Fallback found for "${track?.info?.title}" via ${fallback.source}`);
-        // Sisipkan fallback di posisi 0; autoSkip akan memainkannya sebagai lagu berikutnya
         await player.queue.add(fallback.track, 0);
       } else {
         if (errType === 'auth') {
-          if (textChannel) await textChannel.send({ content: `⚠️ Tidak ada versi lain dari **${track?.info?.title}** yang ditemukan. Melewati...` }).catch(() => {});
+          if (textChannel) {
+            await textChannel.send({
+              content: `⚠️ Tidak ada versi lain dari **${track?.info?.title}** yang ditemukan. Melewati...`
+            }).catch(() => {});
+          }
         } else {
-          if (textChannel) await textChannel.send({ content: getFriendlyErrorMsg('generic', track?.info?.title) }).catch(() => {});
+          if (textChannel) {
+            await textChannel.send({
+              content: getFriendlyErrorMsg('generic', track?.info?.title)
+            }).catch(() => {});
+          }
         }
-        // Tidak ada fallback — autoSkip advance ke lagu berikutnya secara otomatis
       }
     } catch (err) {
       logger.error(`trackError handler error: ${err.message}`);
@@ -360,25 +428,25 @@ async function loadLavalinkEvents(client) {
   });
 
   client.lavalink.on('playerDestroy', async (player, reason) => {
-  logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
+    logger.debug(`Player destroyed in guild ${player.guildId}: ${reason || 'unknown'}`);
 
-  // Fallback jika player dihancurkan bukan melalui command stop/leave.
-  const destroyedChannelId = player.voiceChannelId;
-  if (destroyedChannelId) {
-    await clearVoiceStatus(
-      client,
-      player.guildId,
-      destroyedChannelId
-    );
-  }
+    // Fallback jika player dihancurkan bukan melalui command stop/leave.
+    const destroyedChannelId = player.voiceChannelId;
+    if (destroyedChannelId) {
+      await clearVoiceStatus(
+        client,
+        player.guildId,
+        destroyedChannelId
+      );
+    }
 
-  // Matikan autoplay saat player di-destroy
-  setAutoplay(player.guildId, false);
-   clearTrackFade(player);
+    // Matikan autoplay saat player di-destroy
+    setAutoplay(player.guildId, false);
+    clearTrackFade(player);
 
-  // Reset emoji ke default saat bot keluar VC
-  clearVoiceEmoji(player.guildId);
-});
+    // Reset emoji ke default saat bot keluar VC
+    clearVoiceEmoji(player.guildId);
+  });
 
   client.lavalink.on('playerCreate', (player) => {
     logger.debug(`Player created in guild ${player.guildId}`);
