@@ -28,39 +28,6 @@ async function handleAutoplay(client, ctx) {
   const recentTracks = currentTrack
     ? [...cache.slice(-4), currentTrack]
     : cache.slice(-5);
-  async function loadLavalinkEvents(client) {
-  client.lavalink.on('trackStart', async (player, track) => {
-  try {
-    const voiceChannel = client.channels.cache.get(player.voiceChannelId);
-
-    // Kirim voice status terlebih dahulu agar pergantian judul lebih cepat
-    if (voiceChannel) {
-      const voiceEmoji = getVoiceEmoji(player.guildId);
-      const radioStation = isRadioMode(player.guildId)
-        ? getRadioStation(player.guildId)
-        : null;
-
-      const DEFAULT_EMOJI = '<a:14:1118442091379445821>';
-      const displayTitle = radioStation
-        ? `📻 Radio: ${radioStation}`
-        : track.info.title;
-      const displayAuthor = radioStation
-        ? 'Radio Mode'
-        : track.info.author;
-
-      const status = voiceEmoji
-        ? `**${voiceEmoji}${displayTitle} 𝒃𝒚 ${displayAuthor}**`
-        : `**${DEFAULT_EMOJI}${displayTitle} 𝒃𝒚 ${displayAuthor}**`;
-
-      // Jangan menunggu Discord REST API selesai
-      void setVoiceStatus(
-        client,
-        player.guildId,
-        player.voiceChannelId,
-        status
-      );
-    }
-
   // detectGenre aman dipanggil — selalu tersedia di MusicManager
   const genre = detectGenre(recentTracks);
 

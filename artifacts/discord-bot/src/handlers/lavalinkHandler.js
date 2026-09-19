@@ -28,7 +28,18 @@ function toBold(str) {
   return String(str).split('').map(c => BOLD_MAP[c] || c).join('');
 }
 
-const COPYRIGHT_ERRORS = ['copyright', 'not available in your country', 'blocked', 'unavailable', 'private', 'removed'];
+// Keep this list specific. Lavalink/YouTube also uses "unavailable" for
+// transient extractor failures, so treating that word as copyright makes the
+// bot stop before it can try an alternate result.
+const COPYRIGHT_ERRORS = [
+  'copyright',
+  'not available in your country',
+  'blocked in your country',
+  'blocked due to copyright',
+  'private video',
+  'video has been removed',
+  'removed by uploader',
+];
 const YOUTUBE_AUTH_ERRORS = ['requires login', 'all clients failed', 'video player configuration error', 'sign in to confirm', 'bot traffic', 'age-restricted'];
 const PROXY_ERRORS = ['proxy', 'tunnel', '407', 'econnrefused', 'socket hang up', 'ENOTFOUND'];
 const TIMEOUT_ERRORS = ['timeout', 'ETIMEDOUT', 'EHOSTUNREACH', 'abort'];
@@ -322,12 +333,16 @@ async function loadLavalinkEvents(client) {
       const errType = classifyError(errMsg);
       const textChannel = client.channels.cache.get(player.textChannelId);
 
-      // PRIORITAS PERTAMA: fallback untuk copyright/proxy/timeout
+      // Untuk error sumber, cari versi alternatif sebelum memberi tahu user.
+      // autoSkip tetap menangani perpindahan dari track yang gagal.
       if (
         errType === 'copyright' ||
         errType === 'proxy' ||
         errType === 'timeout'
       ) {
+        retryingTracks.add(retryKey);
+        setTimeout(() => retryingTracks.delete(retryKey), 30000);
+
         const fallback = await tryFallbackSearch(client, player, track);
 
         if (fallback) {

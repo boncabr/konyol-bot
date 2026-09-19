@@ -38,3 +38,4 @@ module.exports = {
   async execute(client, ctx) {
     await handleStop(client, ctx);
   },
+};
